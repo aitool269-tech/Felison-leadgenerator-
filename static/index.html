@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leadgenerator Felison</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ECEEF9; --paneel:#fff; --rand:#E8E9F4; --tekst:#181B27; --dim:#8A90A6;
+    --zwart:#15171F; --lav:#98A0F0; --lavd:#5B63C7; --lavbg:#EDEEFC;
+    --groen:#1E8A5E; --groenbg:#E1F4EA; --amber:#9A6A17; --amberbg:#FAEFDC;
+    --rood:#B93B3B; --roodbg:#FBE9E9; --grijs:#6E7284; --grijsbg:#EFF0F5;
+    --schaduw:0 10px 30px rgba(99,104,164,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.55 'Manrope',-apple-system,'Segoe UI',sans-serif;
+       background:linear-gradient(160deg,#F0F1FC,#E8EAF9 55%,#EDEEFB);color:var(--tekst);min-height:100vh}
+  .app{display:flex;max-width:1440px;margin:0 auto;padding:16px;min-height:100vh}
+  aside{width:228px;flex:none;padding:16px 8px;display:flex;flex-direction:column}
+  .logo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 14px 26px}
+  .woordmerk{display:inline-flex;align-items:baseline;font-weight:800;font-size:26px;line-height:1;letter-spacing:-1px;color:#0A0AA0;font-family:'Manrope',sans-serif}
+  .woordmerk svg{height:.95em;width:auto;margin:0 1px;align-self:flex-end;fill:#0A0AA0}
+  .logo .sublabel{font-size:11px;letter-spacing:.16em;font-weight:700;color:var(--dim);text-transform:uppercase}
+  .bel{position:relative;width:38px;height:38px;border-radius:99px;border:0;background:#fff;color:#5A5F75;
+       cursor:pointer;box-shadow:0 4px 14px rgba(90,95,140,.12);display:flex;align-items:center;justify-content:center;flex:none;margin:4px 6px 0 0}
+  .bel:hover{color:var(--tekst)}
+  .beltel{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;
+          background:#E05B5B;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #ECEEF9}
+  .belpaneel{position:absolute;top:52px;left:8px;right:-40px;z-index:60;background:#fff;border-radius:16px;
+             box-shadow:0 18px 48px rgba(30,33,60,.22);padding:10px 14px;max-height:340px;overflow:auto;min-width:250px}
+  .belitem{padding:9px 4px;border-bottom:1px solid #F2F3FA;cursor:pointer;font-size:13px}
+  .belitem:last-child{border-bottom:0}
+  .belitem:hover{background:#FAFAFE}
+  .belitem .sub{font-size:12px;color:var(--dim)}
+  .belitem .rood{color:#B93B3B;font-weight:700}
+  @media (max-width:880px){.belpaneel{left:auto;right:0;min-width:290px}}
+  nav{display:flex;flex-direction:column;gap:4px}
+  nav button{display:flex;align-items:center;gap:12px;background:none;border:0;padding:11px 14px;border-radius:14px;
+             font:inherit;font-weight:700;font-size:14px;color:#5A5F75;cursor:pointer;text-align:left;width:100%}
+  nav button svg{width:18px;height:18px;flex:none}
+  nav button:hover{color:var(--tekst)}
+  nav button.actief{background:#fff;color:var(--tekst);box-shadow:0 6px 18px rgba(90,95,140,.12)}
+  .onder{margin-top:auto}
+  .inhoud{flex:1;min-width:0;padding:8px 8px 28px 20px}
+  main{max-width:1120px}
+  .kaarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+  .stat{background:var(--paneel);border-radius:20px;padding:16px 18px;box-shadow:var(--schaduw)}
+  .stat .ik{width:32px;height:32px;border-radius:10px;background:var(--lavbg);color:var(--lavd);
+            display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .stat .ik svg{width:16px;height:16px}
+  .stat b{font-size:30px;font-weight:800;display:block;letter-spacing:-1px;line-height:1.1}
+  .stat span{color:var(--dim);font-size:12.5px;font-weight:600}
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  select,input[type=text]{padding:10px 16px;border:0;border-radius:999px;background:#fff;font:inherit;font-weight:600;
+                          font-size:13px;color:#3A3F55;box-shadow:0 2px 8px rgba(99,104,164,.07);outline:none;appearance:none}
+  select:focus,input[type=text]:focus{box-shadow:0 0 0 2px var(--lav)}
+  #fZoek{min-width:210px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--paneel);border-radius:20px;overflow:hidden;box-shadow:var(--schaduw)}
+  th,td{padding:14px 16px;text-align:left;vertical-align:middle}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:800;border-bottom:1px solid var(--rand)}
+  td{border-bottom:1px solid #F2F3FA;font-weight:600}
+  tr:last-child td{border-bottom:0}
+  tr:hover td{background:#FAFAFE}
+  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:800}
+  .kA{background:var(--groenbg);color:var(--groen)} .kB{background:var(--amberbg);color:var(--amber)} .kC{background:var(--grijsbg);color:var(--grijs)}
+  .scorebar{height:6px;border-radius:99px;background:#EFF0F7;margin-top:8px;width:96px;overflow:hidden}
+  .scorebar i{display:block;height:100%;border-radius:99px}
+  .sbA{background:var(--lav)} .sbB{background:#F0B45C} .sbC{background:#E88686}
+  .status{font-size:12px;padding:4px 11px;border-radius:999px;background:var(--grijsbg);color:var(--grijs);display:inline-block;font-weight:700;white-space:nowrap}
+  .st-Nieuw{background:#FAEEDA;color:#854F0B}
+  .st-Opnieuw-binnen{background:#F6E0B8;color:#633806}
+  .st-Geclaimd,.st-Benaderd,.st-In-gesprek{background:#E1F4EA;color:#0F6E56}
+  .st-Aanstelling{background:#0F6E56;color:#fff}
+  .st-Afgewezen{background:#FCEBEB;color:#A32D2D}
+  .st-Geen-interesse{background:#FCEBEB;color:#791F1F}
+  .mijnrij{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #F2F3FA}
+  .mijnrij:last-child{border-bottom:0}
+  .mijnrij .info{flex:1;min-width:0}
+  .mijnrij .sub{font-size:12.5px;color:var(--dim)}
+  .telwolkje{display:inline-block;min-width:22px;text-align:center;background:var(--lavbg);color:var(--lavd);border-radius:999px;padding:2px 8px;font-size:12px;font-weight:800;margin-left:8px}
+  .telwolkje.rood{background:var(--roodbg);color:var(--rood)}
+  button.knop{background:var(--zwart);color:#fff;border:0;padding:10px 20px;border-radius:999px;cursor:pointer;
+              font:inherit;font-weight:700;font-size:13.5px;transition:transform .12s}
+  button.knop:hover{transform:translateY(-1px)}
+  button.knop.secundair{background:#fff;color:var(--tekst);border:1px solid var(--rand)}
+  button.knop:disabled{opacity:.5;cursor:default;transform:none}
+  #kaart{height:560px;border-radius:20px;border:0;box-shadow:var(--schaduw)}
+  .paneel{background:var(--paneel);border:0;border-radius:20px;padding:26px;max-width:660px;box-shadow:var(--schaduw)}
+  .paneel h3,.paneel h4{letter-spacing:-.2px}
+  .dropzone{border:2px dashed #C9CCEA;border-radius:16px;padding:22px;text-align:center;color:var(--dim);margin:8px 0;cursor:pointer;background:#FAFAFE;font-weight:600}
+  .dropzone.vol{border-color:var(--groen);color:var(--groen);background:var(--groenbg)}
+  dialog{border:0;border-radius:22px;padding:26px;width:540px;max-width:92vw;box-shadow:0 24px 60px rgba(30,33,60,.25)}
+  dialog::backdrop{background:rgba(24,27,39,.45);backdrop-filter:blur(2px)}
+  dialog h3{margin-top:0;letter-spacing:-.3px}
+  label{display:block;margin:12px 0 5px;font-size:12.5px;color:var(--dim);font-weight:700}
+  textarea{width:100%;border:1px solid var(--rand);border-radius:12px;padding:10px;font:inherit;outline:none}
+  textarea:focus{border-color:var(--lav)}
+  dialog select,dialog input[type=text]{border:1px solid var(--rand);border-radius:12px;box-shadow:none;background:#FAFAFE}
+  .tijdlijn{max-height:240px;overflow:auto;margin-top:14px;border-top:1px solid var(--rand);padding-top:4px}
+  .tl-dag{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px}
+  .tl-item{display:flex;gap:10px;padding:5px 0;align-items:flex-start}
+  .tl-stip{width:26px;height:26px;border-radius:99px;flex:none;display:flex;align-items:center;justify-content:center}
+  .tl-kop{font-size:13px;font-weight:700}
+  .tl-kop span{color:var(--dim);font-weight:600}
+  .tl-notitie{font-size:13px;color:#3A3F55;margin-top:1px}
+  .legenda{display:flex;gap:14px;margin:0 0 12px;font-size:13px;flex-wrap:wrap;font-weight:600}
+  .stip{display:inline-block;width:11px;height:11px;border-radius:99px;margin-right:5px;vertical-align:-1px}
+  .melding{padding:12px 16px;border-radius:14px;margin:10px 0;background:var(--lavbg);color:var(--lavd);display:none;font-weight:600}
+  @media (max-width:880px){
+    .app{flex-direction:column;padding:10px}
+    aside{width:100%;flex-direction:row;align-items:center;padding:6px 2px}
+    .logo{padding:0 12px 0 4px}
+    nav{flex-direction:row}
+    nav button{padding:9px 12px}
+    .onder{margin:0 0 0 auto}
+    .inhoud{padding:14px 4px}
+    .scorebar{width:64px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative">
+    <div class="logo">
+      <span class="woordmerk">fel<svg viewBox="0 0 11 30" aria-hidden="true"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
+      <span class="sublabel">Leadgenerator</span>
+    </div>
+    <button class="bel" id="belKnop" title="Meldingen" aria-label="Meldingen">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/></svg>
+      <span class="beltel" id="belBadge" hidden></span>
+    </button>
+    <div class="belpaneel" id="belPaneel" hidden></div>
+  </div>
+  <nav>
+    <button data-tab="leads" class="actief">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/></svg>
+      Leads</button>
+    <button data-tab="mijn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+      Mijn leads</button>
+    <button data-tab="kaart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      Kaart</button>
+    <button data-tab="rapport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      Rapport</button>
+  </nav>
+  <nav class="onder">
+    <button data-tab="instellingen" title="Instellingen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a7.9 7.9 0 0 0 .1-6l-2.2-.6a6 6 0 0 0-1.7-1.7L15 4.5a7.9 7.9 0 0 0-6 0l-.6 2.2a6 6 0 0 0-1.7 1.7L4.5 9a7.9 7.9 0 0 0 0 6l2.2.6a6 6 0 0 0 1.7 1.7l.6 2.2a7.9 7.9 0 0 0 6 0l.6-2.2a6 6 0 0 0 1.7-1.7z"/></svg>
+      Instellingen</button>
+  </nav>
+</aside>
+<div class="inhoud">
+<main>
+
+<section id="tab-leads">
+  <div class="kaarten" id="statKaarten"></div>
+  <div class="filters">
+    <select id="fStatus"><option value="">Alle statussen</option></select>
+    <select id="fKlasse"><option value="">Alle klassen</option><option>A</option><option>B</option><option>C</option></select>
+    <select id="fProvincie"><option value="">Alle provincies</option></select>
+    <select id="fAm"><option value="">Alle AM's</option></select>
+    <input type="text" id="fZoek" placeholder="Zoek op naam of plaats…">
+    <button class="knop" id="exportKnop" style="margin-left:auto" title="Exporteert de leadlijst met de actieve filters">⬇ Excel</button>
+  </div>
+  <table>
+    <thead><tr><th>Score <span onclick="toonScoreUitleg()" title="Hoe wordt de score berekend?" style="cursor:pointer;color:var(--accent);font-weight:700">&#9432;</span></th><th>Kantoor</th><th>Plaats</th><th>Provincie</th><th>Vergunning per</th><th>Status</th><th>AM</th><th></th></tr></thead>
+    <tbody id="leadRijen"></tbody>
+  </table>
+</section>
+
+<section id="tab-mijn" hidden>
+  <div class="filters">
+    <select id="mijnAmKeuze"><option value="">— kies je naam —</option></select>
+  </div>
+  <div id="mijnInhoud"></div>
+</section>
+
+<section id="tab-rapport" hidden>
+  <div id="rapportInhoud" style="display:flex;flex-direction:column;gap:16px"></div>
+</section>
+
+<section id="tab-kaart" hidden>
+  <div class="legenda" id="kaartLegenda"></div>
+  <div id="kaart"></div>
+</section>
+
+<section id="tab-instellingen" hidden>
+  <div class="paneel">
+    <h3>Maandelijkse import</h3>
+    <p>Sleep of kies beide AFM-bestanden. Bestaande leads (zelfde vergunningnummer) worden automatisch overgeslagen.</p>
+    <div class="dropzone" id="dzXlsx">1. Nieuwe inkomensvergunningen (R0443).xlsx</div>
+    <input type="file" id="fileXlsx" accept=".xlsx" hidden>
+    <div class="dropzone" id="dzCsv">2. financiele-dienstverleners.csv</div>
+    <input type="file" id="fileCsv" accept=".csv" hidden>
+    <button class="knop" id="importKnop" disabled>Importeer</button>
+    <div class="melding" id="importMelding"></div>
+    <h4>Eerdere imports</h4>
+    <div id="importHistorie" style="font-size:13px;color:var(--dim)"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Accountmanagers</h3>
+    <p>Voeg AM's toe; de kleur wordt gebruikt op de kaart zodat het werkgebied per AM zichtbaar wordt.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="amNaam" placeholder="Naam AM">
+      <input type="color" id="amKleur" value="#1d4ed8">
+      <button class="knop" id="amToevoegen">Toevoegen</button>
+    </div>
+    <div id="amLijst" style="margin-top:14px"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Website-verrijking</h3>
+    <p>Zoekt per lead automatisch de website op (via Google) en scant die op verzuim-, collectieve inkomens- en personeelsverzekeringen. Draait vanzelf na elke import; hier kun je hem ook handmatig starten voor leads die nog niet verrijkt zijn.</p>
+    <button class="knop" id="verrijkKnop">Verrijk leads zonder websitescan</button>
+    <div id="verrijkStatus" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Hoe wordt de leadscore berekend?</h3>
+    <div id="scoreUitlegPaneel"></div>
+  </div>
+</section>
+</main>
+</div>
+</div>
+
+<dialog id="leadDialog"></dialog>
+
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:linear-gradient(160deg,#F0F1FC,#DFE2F7);z-index:99;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:24px;padding:36px;width:360px;max-width:90vw;box-shadow:0 24px 60px rgba(30,33,60,.18)">
+    <span class="woordmerk" style="font-size:32px">fel<svg viewBox="0 0 11 30" aria-hidden="true" style="height:.95em;width:auto;margin:0 1px;fill:#0A0AA0"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
+    <h3 style="margin:10px 0 6px;font-size:16px">Leadgenerator Felison</h3>
+    <p style="color:var(--dim);font-size:13px;margin:0 0 14px">Voer de toegangscode in om het leaddashboard te openen.</p>
+    <input type="text" id="loginCode" placeholder="Toegangscode" autocomplete="off" autocapitalize="off" spellcheck="false"
+           style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:8px;font-size:15px">
+    <div id="loginFout" style="color:#b91c1c;font-size:13px;min-height:18px;margin:6px 0"></div>
+    <button class="knop" id="loginKnop" style="width:100%;padding:10px">Inloggen</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const fmtDatum = s => s ? String(s).slice(0,10).split('-').reverse().join('-') : '—';
+
+const SCORE_UITLEG = `
+<p style="font-size:13px;color:var(--dim);margin-top:0">Elke lead start op <b>40 punten</b>. Daarna tellen deze factoren op of af (totaal begrensd op 0&ndash;100):</p>
+<table style="font-size:13px">
+  <tr><td>Versheid van de vergunning</td><td style="white-space:nowrap">&le;45 dagen <b style="color:#15803d">+25</b> &middot; &le;120 dagen <b style="color:#15803d">+15</b> &middot; ouder +0</td></tr>
+  <tr><td>Soort dienst</td><td>adviseren/bemiddelen <b style="color:#15803d">+10</b> &middot; anders (bijv. gevolmachtigd agent) <b style="color:#b91c1c">&minus;10</b></td></tr>
+  <tr><td>Beperkte vergunning</td><td>alleen betalingsbeschermers e.d. <b style="color:#b91c1c">&minus;30</b></td></tr>
+  <tr><td>Rechtsvorm B.V. of N.V.</td><td><b style="color:#15803d">+10</b></td></tr>
+  <tr><td>Adresgegevens</td><td>volledig adres <b style="color:#15803d">+10</b> &middot; alleen plaats <b style="color:#15803d">+5</b></td></tr>
+  <tr><td>Websitescan (via leaddetail; kijkt ook op diensten-/zakelijk-pagina's)</td><td>bereikbaar <b style="color:#15803d">+3</b> &middot; verzuimverzekering <b style="color:#15803d">+3</b> &middot; collectieve inkomensverzekeringen <b style="color:#15803d">+3</b> &middot; personeelsverzekeringen <b style="color:#15803d">+3</b> &middot; AOV/WIA/WGA <b style="color:#15803d">+2</b> &middot; team-/contactpagina <b style="color:#15803d">+1</b> (max +15)</td></tr>
+</table>
+<p style="font-size:13px;margin-bottom:0">De totaalscore bepaalt de klasse:
+<span class="badge kA">A &middot; &ge; 70</span> beste kans &nbsp;
+<span class="badge kB">B &middot; 50&ndash;69</span> addertje (bijv. beperkte vergunning) &nbsp;
+<span class="badge kC">C &middot; &lt; 50</span> lage prioriteit.<br>
+De precieze puntenopbouw per lead zie je in het leaddetail en als tooltip op de scorebadge.</p>`;
+
+function toonScoreUitleg() {
+  $('#leadDialog').innerHTML = `<h3>Hoe wordt de leadscore berekend?</h3>${SCORE_UITLEG}
+    <div style="margin-top:14px;text-align:right"><button class="knop secundair" onclick="leadDialog.close()">Sluiten</button></div>`;
+  leadDialog.showModal();
+}
+let LEADS = [], AMS = [], STATUSSEN = [], kaart = null, markerLaag = null;
+
+// ---- tabs ----
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.remove('actief'));
+  b.classList.add('actief');
+  ['leads','mijn','kaart','rapport','instellingen'].forEach(t => $('#tab-'+t).hidden = t !== b.dataset.tab);
+  if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
+  if (b.dataset.tab === 'mijn') tekenMijn();
+  if (b.dataset.tab === 'rapport') laadRapport();
+});
+const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
+
+// Code wordt zowel in localStorage als in een cookie (1 jaar) bewaard — als de ene
+// opslag door de browser wordt leeggemaakt (bijv. in-app browsers zoals WhatsApp),
+// valt de andere terug. Een ?code=… in de URL logt bovendien meteen in, handig voor
+// een vaste bladwijzer/link per AM zodat er nooit getypt hoeft te worden.
+function bewaarCode(code) {
+  localStorage.toegangscode = code;
+  const verloopt = new Date(Date.now() + 365 * 24 * 3600 * 1000).toUTCString();
+  document.cookie = `toegangscode=${encodeURIComponent(code)}; expires=${verloopt}; path=/; SameSite=Lax`;
+}
+function huidigeCode() {
+  if (localStorage.toegangscode) return localStorage.toegangscode;
+  const m = document.cookie.match(/(?:^|;\s*)toegangscode=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function toonLogin(fout) {
+  const ov = $('#loginOverlay');
+  ov.style.display = 'flex';
+  $('#loginFout').textContent = fout || '';
+  $('#loginCode').focus();
+}
+async function probeerLogin(codeUitUrl) {
+  if (typeof codeUitUrl !== 'string') codeUitUrl = null;
+  const code = codeUitUrl || $('#loginCode').value.trim();
+  if (!code) return;
+  $('#loginKnop').disabled = true; $('#loginFout').textContent = '';
+  const r = await fetch('/api/meta', {headers:{'X-Toegangscode': code}});
+  $('#loginKnop').disabled = false;
+  if (r.ok) {
+    bewaarCode(code);
+    if (codeUitUrl) { const u = new URL(window.location); u.searchParams.delete('code'); window.location.replace(u); }
+    else window.location.reload();
+  }
+  else if (r.status === 401) { if (!codeUitUrl) $('#loginFout').textContent = 'Deze code is onjuist.'; }
+  else if (!codeUitUrl) $('#loginFout').textContent = 'Er ging iets mis (' + r.status + '), probeer opnieuw.';
+}
+
+const codeUitUrl = new URL(window.location).searchParams.get('code');
+if (codeUitUrl) probeerLogin(codeUitUrl);
+
+async function api(pad, opties = {}) {
+  opties.headers = Object.assign({}, opties.headers, {'X-Toegangscode': huidigeCode()});
+  const r = await fetch(pad, opties);
+  if (r.status === 401) {
+    toonLogin(huidigeCode() ? 'De opgeslagen code is niet (meer) geldig.' : '');
+    throw new Error('Toegangscode vereist');
+  }
+  if (!r.ok) { const e = await r.json().catch(()=>({detail:r.statusText})); throw new Error(e.detail); }
+  return r.json();
+}
+
+async function laadAlles() {
+  if (!STATUSSEN.length) {
+    const meta = await api('/api/meta');
+    META = meta;
+    STATUSSEN = meta.statussen;
+    if (!meta.serper) $('#verrijkKnop').disabled = true;
+    if (meta.demo) {
+      const w = document.createElement('div');
+      w.style.cssText = 'background:var(--lavbg);color:var(--lavd);padding:12px 18px;font-size:13px;font-weight:600;border-radius:14px;margin-bottom:14px';
+      w.textContent = '🎬 Demo-omgeving met fictieve kantoren — klik en wijzig gerust alles; de data wordt vanzelf teruggezet.';
+      document.querySelector('.inhoud').prepend(w);
+    } else if (meta.persistent === false) {
+      const w = document.createElement('div');
+      w.style.cssText = 'background:#FAEFDC;color:#9A6A17;padding:12px 18px;font-size:13px;font-weight:600;border-radius:14px;margin-bottom:14px';
+      w.textContent = '⚠ Demo-modus: er is nog geen database gekoppeld — ingevoerde data blijft niet bewaard. Koppel in Vercel een (gratis) Neon Postgres-database.';
+      document.querySelector('.inhoud').prepend(w);
+    }
+  }
+  [LEADS, AMS] = await Promise.all([api('/api/leads'), api('/api/ams')]);
+  vulFilters(); tekenTabel(); tekenStats(); tekenTeam(); tekenMeldingen();
+  if (!$('#tab-kaart').hidden) tekenKaart();
+}
+
+function vulFilters() {
+  const zetOpties = (sel, waarden, eerste) => {
+    const huidig = sel.value;
+    sel.innerHTML = `<option value="">${eerste}</option>` + waarden.map(v=>`<option>${v}</option>`).join('');
+    sel.value = huidig;
+  };
+  zetOpties($('#fStatus'), STATUSSEN, 'Alle statussen');
+  zetOpties($('#fProvincie'), [...new Set(LEADS.map(l=>l.provincie).filter(Boolean))].sort(), 'Alle provincies');
+  zetOpties($('#fAm'), AMS.map(a=>a.naam), "Alle AM's");
+}
+
+function gefilterd() {
+  const s=$('#fStatus').value, k=$('#fKlasse').value, p=$('#fProvincie').value, a=$('#fAm').value,
+        z=$('#fZoek').value.toLowerCase();
+  return LEADS.filter(l =>
+    (!s || l.status===s) && (!k || l.klasse===k) && (!p || l.provincie===p) && (!a || l.am===a) &&
+    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)));
+}
+
+function tekenTabel() {
+  $('#leadRijen').innerHTML = gefilterd().map(l => `
+    <tr>
+      <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
+      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}<br>
+          <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
+      <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
+      <td>${l.provincie||'—'}</td>
+      <td>${fmtDatum(l.begindatum_dienst)}</td>
+      <td><span class="status ${stKlasse(l.status)}">${l.status}</span></td>
+      <td>${l.am||'—'}</td>
+      <td><button class="knop secundair" onclick="openLead(${l.id})">Open</button></td>
+    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Geen leads — importeer eerst de AFM-bestanden.</td></tr>';
+}
+
+['fStatus','fKlasse','fProvincie','fAm'].forEach(id => $('#'+id).onchange = tekenTabel);
+$('#fZoek').oninput = tekenTabel;
+
+const statIcoon = {
+  totaal: '<rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/>',
+  claim: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
+  bezig: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  aanst: '<path d="M4 12l5 5L20 6"/>',
+  alead: '<path d="M12 3l2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9z"/>'
+};
+function tekenStats() {
+  const telling = s => LEADS.filter(l=>l.status===s).length;
+  const open = LEADS.filter(l=>['Nieuw'].includes(l.status)).length;
+  const lopend = LEADS.filter(l=>['Geclaimd','Benaderd','In gesprek','Opnieuw binnen'].includes(l.status)).length;
+  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><b>${n}</b><span>${label}</span></div>`;
+  $('#statKaarten').innerHTML =
+    kaart('totaal', LEADS.length, 'totaal leads') +
+    kaart('claim', open, 'nog te claimen') +
+    kaart('bezig', lopend, 'in behandeling') +
+    kaart('aanst', telling('Aanstelling'), 'aanstellingen') +
+    kaart('alead', LEADS.filter(l=>l.klasse==='A').length, 'A-leads');
+}
+
+// ---- lead-dialog ----
+const TL_ICONEN = {
+  'Gebeld': '<path d="M4 4h4.5l2 5-2.8 1.9a12.5 12.5 0 0 0 5.4 5.4L15 13.5l5 2V20a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z"/>',
+  'Gemaild': '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7.5l9 6 9-6"/>',
+  'Gesproken': '<path d="M21 11.5a8 8 0 0 1-8 8H4l2.3-2.8A8 8 0 1 1 21 11.5z"/>',
+  'Anders': '<circle cx="12" cy="12" r="1.2"/><circle cx="6.5" cy="12" r="1.2"/><circle cx="17.5" cy="12" r="1.2"/>',
+  'status': '<path d="M5 21V4"/><path d="M5 4h13l-2.6 4L18 12H5"/>'
+};
+function tekenTijdlijn(feed) {
+  if (!feed.length) return '<div style="color:var(--dim);font-size:13px;padding:8px 0">Nog geen activiteit — claim de lead of leg een contactmoment vast.</div>';
+  const vandaag = new Date().toISOString().slice(0,10);
+  const gisteren = new Date(Date.now() - 864e5).toISOString().slice(0,10);
+  const dagLabel = d => d === vandaag ? 'Vandaag' : d === gisteren ? 'Gisteren' : fmtDatum(d);
+  let html = '', vorigeDag = '';
+  for (const e of feed) {
+    const ts = String(e.ts).replace('T', ' ');
+    const dag = ts.slice(0,10), tijd = ts.slice(11,16);
+    if (dag !== vorigeDag) { html += `<div class="tl-dag">${dagLabel(dag)}</div>`; vorigeDag = dag; }
+    const isContact = e.soort === 'contact';
+    const icoon = isContact ? (TL_ICONEN[e.label] || TL_ICONEN.Anders) : TL_ICONEN.status;
+    const stipStijl = isContact ? 'style="background:var(--lavbg);color:var(--lavd)"' : '';
+    html += `<div class="tl-item">
+      <div class="tl-stip ${isContact ? '' : stKlasse(e.label)}" ${stipStijl}>
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icoon}</svg></div>
+      <div style="flex:1;min-width:0">
+        <div class="tl-kop">${e.label} <span>· ${e.am || 'systeem'} · ${tijd}</span></div>
+        ${e.notitie ? `<div class="tl-notitie">${e.notitie}</div>` : ''}
+      </div></div>`;
+  }
+  return html;
+}
+
+window.openLead = async id => {
+  const l = LEADS.find(x=>x.id===id);
+  const [log, historie] = await Promise.all([api(`/api/leads/${id}/activiteit`), api(`/api/leads/${id}/historie`)]);
+  const amOpties = AMS.map(a=>`<option ${a.naam===l.am?'selected':''}>${a.naam}</option>`).join('');
+  $('#leadDialog').innerHTML = `
+    <h3>${l.naam}</h3>
+    <div style="font-size:13px;color:var(--dim)">
+      ${l.handelsnamen && l.handelsnamen!==l.naam ? 'h/o '+l.handelsnamen+'<br>' : ''}
+      ${[l.adres,l.postcode,l.plaats].filter(Boolean).join(', ')||'Adres onbekend'} · ${l.provincie||'provincie onbekend'}<br>
+      KvK ${l.kvk||'?'} · AFM ${l.vergunningnummer} · vergunning per ${fmtDatum(l.begindatum_dienst)}<br>
+      Score <b>${l.klasse} (${l.score})</b>: ${l.score_uitleg||''}
+      ${l.website_uitleg?`<br>Websitescan (+${l.website_score||0}): ${l.website_uitleg}`:''}
+      ${l.beperkingen?`<br>⚠ <i>${l.beperkingen}</i>`:''}
+      <br>Binnengekomen in AFM-bestanden: <b>${historie.length}×</b> (${historie.map(h=>fmtDatum(h.ts)).join(' · ')})
+    </div>
+    <label>Accountmanager</label>
+    <div style="display:flex;gap:8px">
+      <select id="dAm"><option value="">— kies AM —</option>${amOpties}</select>
+      <button class="knop" id="dClaim">${l.am?'Wijzig':'Claim'}</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+      <div><label>Status</label>
+        <select id="dStatus" style="width:100%">${STATUSSEN.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div><label>Contactpersoon</label>
+        <input type="text" id="dContactpersoon" value="${l.contactpersoon||''}" placeholder="Naam" style="width:100%"></div>
+      <div><label>Telefoon</label>
+        <input type="text" id="dTelefoon" value="${l.telefoon||''}" placeholder="06…" style="width:100%"></div>
+      <div><label>E-mail</label>
+        <input type="text" id="dEmail" value="${l.email||''}" placeholder="info@…" style="width:100%"></div>
+      <div><label>Vervolgactie</label>
+        <input type="text" id="dVervolgActie" value="${l.vervolg_actie||''}" placeholder="bijv. terugbellen" style="width:100%"></div>
+      <div><label>Vervolgdatum</label>
+        <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:12px;background:#FAFAFE;font:inherit"></div>
+    </div>
+    <label>Contactmoment vastleggen</label>
+    <div style="display:flex;gap:8px">
+      <select id="dContactType"><option>Gebeld</option><option>Gemaild</option><option>Gesproken</option><option>Anders</option></select>
+      <input type="text" id="dContactNotitie" placeholder="korte notitie…" style="flex:1">
+      <button class="knop secundair" id="dLogContact">+ Log</button>
+    </div>
+    <label>Notitie bij statuswijziging</label>
+    <textarea id="dNotitie" rows="2"></textarea>
+    <label>Website</label>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="dWebsite" value="${l.website||''}" placeholder="https://…" style="flex:1">
+      <button class="knop secundair" id="dScan" title="Controleert de website en telt het resultaat mee in de score">Scan</button>
+    </div>
+    <div id="dScanResultaat" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+      ${l.am?'<button class="knop secundair" id="dVrijgeven" style="margin-right:auto;color:#b91c1c">Geef vrij</button>':''}
+      <button class="knop secundair" onclick="leadDialog.close()">Sluiten</button>
+      <button class="knop" id="dOpslaan">Opslaan</button>
+    </div>
+    <div class="tijdlijn">${tekenTijdlijn(log)}</div>`;
+  $('#dClaim').onclick = async () => {
+    const am = $('#dAm').value;
+    if (!am) return alert('Kies eerst een AM (tab Team om toe te voegen).');
+    try { await api(`/api/leads/${id}/claim`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({am})}); }
+    catch(e){ return alert(e.message); }
+    leadDialog.close(); laadAlles();
+  };
+  const vrij = $('#dVrijgeven');
+  if (vrij) vrij.onclick = async () => {
+    if (!confirm(`Lead vrijgeven? ${l.am} raakt hem dan kwijt en de status gaat terug naar Nieuw.`)) return;
+    await api(`/api/leads/${id}/vrijgeven`, {method:'POST'});
+    leadDialog.close(); laadAlles();
+  };
+  $('#dScan').onclick = async () => {
+    const web = $('#dWebsite').value.trim();
+    if (!web) return $('#dScanResultaat').textContent = 'Vul eerst een website in.';
+    $('#dScan').disabled = true; $('#dScanResultaat').textContent = 'Bezig met scannen…';
+    try {
+      if (web !== (l.website||''))
+        await api(`/api/leads/${id}/website`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:web})});
+      const r = await api(`/api/leads/${id}/scan_website`, {method:'POST'});
+      $('#dScanResultaat').textContent = `+${r.website_score} punten → score ${r.nieuwe_score} (${r.klasse}). ${r.uitleg}`;
+      laadAlles();
+    } catch(e) { $('#dScanResultaat').textContent = 'Fout: ' + e.message; }
+    $('#dScan').disabled = false;
+  };
+  $('#dLogContact').onclick = async () => {
+    await api(`/api/leads/${id}/contact`, {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:$('#dContactType').value, notitie:$('#dContactNotitie').value, am:$('#dAm').value||l.am||localStorage.mijnAm})});
+    leadDialog.close(); await laadAlles(); openLead(id);
+  };
+  $('#dOpslaan').onclick = async () => {
+    const status = $('#dStatus').value, notitie = $('#dNotitie').value, web = $('#dWebsite').value;
+    const json = b => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+    if (status !== l.status || notitie)
+      await api(`/api/leads/${id}/status`, json({status, notitie, am:$('#dAm').value||l.am}));
+    if (web !== (l.website||''))
+      await api(`/api/leads/${id}/website`, json({website:web}));
+    const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(), contactpersoon:$('#dContactpersoon').value.trim()};
+    if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||''))
+      await api(`/api/leads/${id}/gegevens`, json(g));
+    const v = {datum:$('#dVervolgDatum').value, actie:$('#dVervolgActie').value.trim()};
+    if (v.datum!==(l.vervolg_datum||'') || v.actie!==(l.vervolg_actie||''))
+      await api(`/api/leads/${id}/vervolg`, json(v));
+    leadDialog.close(); laadAlles();
+  };
+  leadDialog.showModal();
+};
+
+// ---- mijn leads ----
+const LOPEND = ['Geclaimd','Benaderd','In gesprek'];
+function vulMijnAm() {
+  const sel = $('#mijnAmKeuze'), huidig = localStorage.mijnAm || '';
+  sel.innerHTML = '<option value="">— kies je naam —</option>' + AMS.map(a=>`<option>${a.naam}</option>`).join('');
+  sel.value = huidig;
+  sel.onchange = () => { localStorage.mijnAm = sel.value; tekenMijn(); };
+}
+function mijnRij(l, extra) {
+  return `<div class="mijnrij">
+    <span class="badge k${l.klasse}">${l.klasse}</span>
+    <div class="info"><b>${l.naam}</b> <span class="status ${stKlasse(l.status)}" style="margin-left:6px">${l.status}</span><br>
+      <span class="sub">${l.plaats||'?'} · ${extra||''}</span></div>
+    <button class="knop secundair" onclick="openLead(${l.id})">Open</button>
+  </div>`;
+}
+function tekenMijn() {
+  vulMijnAm();
+  const am = localStorage.mijnAm || '';
+  const doel = $('#mijnInhoud');
+  if (!am) { doel.innerHTML = '<div class="paneel">Kies hierboven je naam om jouw werklijst te zien. Nog geen naam in de lijst? Voeg jezelf toe via Instellingen → Accountmanagers.</div>'; return; }
+  const vandaag = new Date().toISOString().slice(0,10);
+  const mijn = LEADS.filter(l => l.am === am);
+  const open = l => LOPEND.includes(l.status) || l.status === 'Opnieuw binnen';
+  const groepen = [
+    ['Achterstallig', 'rood', mijn.filter(l => open(l) && l.vervolg_datum && l.vervolg_datum < vandaag),
+     l => `${l.vervolg_actie||'vervolgactie'} — had gemoeten op ${fmtDatum(l.vervolg_datum)}`],
+    ['Vandaag', '', mijn.filter(l => open(l) && l.vervolg_datum === vandaag),
+     l => l.vervolg_actie || 'vervolgactie gepland vandaag'],
+    ['Opnieuw binnengekomen', '', mijn.filter(l => l.status === 'Opnieuw binnen'),
+     l => `opnieuw in AFM-bestand · ${l.keren_binnen}× binnengekomen`],
+    ['Zonder geplande vervolgactie', 'rood', mijn.filter(l => LOPEND.includes(l.status) && !l.vervolg_datum),
+     l => 'plan een vervolgactie zodat deze lead niet blijft liggen'],
+    ['Gepland', '', mijn.filter(l => open(l) && l.vervolg_datum && l.vervolg_datum > vandaag),
+     l => `${l.vervolg_actie||'vervolgactie'} op ${fmtDatum(l.vervolg_datum)}`],
+  ];
+  let html = '';
+  for (const [titel, kleur, lijst, subFn] of groepen) {
+    if (!lijst.length) continue;
+    html += `<div class="paneel" style="max-width:900px;margin-bottom:16px"><h3 style="margin:0 0 4px">${titel}
+      <span class="telwolkje ${kleur}">${lijst.length}</span></h3>${lijst.map(l=>mijnRij(l, subFn(l))).join('')}</div>`;
+  }
+  const klaar = mijn.filter(l=>l.status==='Aanstelling').length;
+  doel.innerHTML = html || `<div class="paneel">Niets te doen — je hebt ${mijn.length} lead(s), waarvan ${klaar} aanstelling(en). Claim nieuwe leads via het Leads-tabblad.</div>`;
+}
+
+// ---- meldingen ----
+function berekenMeldingen() {
+  const am = localStorage.mijnAm || '';
+  if (!am) return null;
+  const vandaag = new Date().toISOString().slice(0,10);
+  const open = l => LOPEND.includes(l.status) || l.status === 'Opnieuw binnen';
+  const meldingen = [];
+  for (const l of LEADS.filter(l => l.am === am)) {
+    if (open(l) && l.vervolg_datum && l.vervolg_datum < vandaag)
+      meldingen.push({l, tekst: `${l.vervolg_actie||'Vervolgactie'} — had gemoeten op ${fmtDatum(l.vervolg_datum)}`, urgent: true});
+    else if (open(l) && l.vervolg_datum === vandaag)
+      meldingen.push({l, tekst: `${l.vervolg_actie||'Vervolgactie'} — vandaag gepland`, urgent: false});
+    if (l.status === 'Opnieuw binnen')
+      meldingen.push({l, tekst: 'Opnieuw binnengekomen in het AFM-bestand', urgent: true});
+  }
+  return meldingen.sort((a,b) => b.urgent - a.urgent);
+}
+function tekenMeldingen() {
+  const m = berekenMeldingen();
+  const badge = $('#belBadge');
+  badge.hidden = !m || !m.length;
+  if (m && m.length) badge.textContent = m.length;
+}
+$('#belKnop').onclick = e => {
+  e.stopPropagation();
+  const p = $('#belPaneel');
+  if (!p.hidden) { p.hidden = true; return; }
+  const m = berekenMeldingen();
+  if (m === null)
+    p.innerHTML = '<div class="belitem" onclick="belPaneel.hidden=true;document.querySelector(\'nav button[data-tab=mijn]\').click()">Kies eerst je naam in <b>Mijn leads</b> om persoonlijke meldingen te krijgen.</div>';
+  else if (!m.length)
+    p.innerHTML = `<div class="belitem" style="cursor:default">Geen meldingen — alles is bij, ${localStorage.mijnAm}.</div>`;
+  else
+    p.innerHTML = m.map(x => `<div class="belitem" onclick="belPaneel.hidden=true;openLead(${x.l.id})">
+      <b>${x.l.naam}</b><br><span class="sub ${x.urgent?'rood':''}">${x.tekst}</span></div>`).join('');
+  p.hidden = false;
+};
+document.addEventListener('click', e => {
+  const p = $('#belPaneel');
+  if (!p.hidden && !p.contains(e.target)) p.hidden = true;
+});
+
+// ---- export ----
+$('#exportKnop').onclick = async () => {
+  const p = new URLSearchParams();
+  for (const [naam, sel] of [['status','#fStatus'],['klasse','#fKlasse'],['provincie','#fProvincie'],['am','#fAm']])
+    if ($(sel).value) p.set(naam, $(sel).value);
+  const knop = $('#exportKnop'); knop.disabled = true; knop.textContent = 'Bezig…';
+  try {
+    const r = await fetch('/api/export?' + p, {headers:{'X-Toegangscode': huidigeCode()}});
+    if (!r.ok) throw new Error('Export mislukt (' + r.status + ')');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'leads-' + new Date().toISOString().slice(0,10) + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) { alert(e.message); }
+  knop.disabled = false; knop.textContent = '⬇ Excel';
+};
+
+// ---- rapport ----
+const STATUS_KLEUR = {'Nieuw':'#EF9F27','Opnieuw binnen':'#BA7517','Geclaimd':'#97C459',
+  'Benaderd':'#639922','In gesprek':'#1D9E75','Aanstelling':'#0B9455','Afgewezen':'#E24B4A','Geen interesse':'#A32D2D'};
+
+function donut(data, titel) {
+  const rijen = data.filter(d => d.value > 0);
+  const tot = rijen.reduce((s,d) => s + d.value, 0);
+  if (!tot) return `<div style="color:var(--dim);font-size:13px">${titel}: nog geen data</div>`;
+  const R = 45, C = 2 * Math.PI * R;
+  let off = 0;
+  const segs = rijen.map(d => {
+    const len = d.value / tot * C;
+    const s = `<circle r="${R}" cx="60" cy="60" fill="none" stroke="${d.kleur}" stroke-width="16"
+      stroke-dasharray="${len-1.5} ${C-len+1.5}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;
+    off += len;
+    return s;
+  }).join('');
+  const legenda = rijen.map(d =>
+    `<div style="font-size:12.5px;font-weight:600;white-space:nowrap"><span class="stip" style="background:${d.kleur}"></span>${d.label} <span style="color:var(--dim)">(${d.value})</span></div>`).join('');
+  return `<div style="display:flex;gap:16px;align-items:center">
+    <svg width="120" height="120" viewBox="0 0 120 120" style="flex:none">${segs}
+      <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="#181B27" font-family="inherit">${tot}</text>
+      <text x="60" y="76" text-anchor="middle" font-size="9.5" fill="#8A90A6" font-family="inherit">${titel.toUpperCase()}</text></svg>
+    <div>${legenda}</div></div>`;
+}
+
+function tekenDonuts() {
+  const per = veld => {
+    const t = {};
+    LEADS.forEach(l => { const k = l[veld] || '—'; t[k] = (t[k]||0) + 1; });
+    return t;
+  };
+  const statusTelling = per('status');
+  const statussen = STATUSSEN.map(s => ({label:s, value:statusTelling[s]||0, kleur:STATUS_KLEUR[s]||'#B4B2A9'}));
+  const klassen = ['A','B','C'].map(k => ({label:'Klasse '+k, value:LEADS.filter(l=>l.klasse===k).length,
+    kleur:{A:'#1E9E6A',B:'#EF9F27',C:'#B4B2A9'}[k]}));
+  const kleurVanAm = am => (AMS.find(a=>a.naam===am)||{}).kleur || '#B4B2A9';
+  const ams = [{label:'Niet geclaimd', value:LEADS.filter(l=>!l.am).length, kleur:'#D3D1C7'}]
+    .concat(AMS.map(a => ({label:a.naam, value:LEADS.filter(l=>l.am===a.naam).length, kleur:a.kleur})));
+  return `<div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Verdeling</h3>
+    <div style="display:flex;gap:36px;flex-wrap:wrap">
+      ${donut(statussen,'status')}${donut(klassen,'klasse')}${donut(ams,'per AM')}
+    </div></div>`;
+}
+async function laadRapport() {
+  const r = await api('/api/conversie');
+  const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '—';
+  const cohortRijen = r.cohorten.map(c => `<tr><td>${c.maand}</td><td>${c.leads}</td>
+    <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
+    <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
+    <td>${c.aanstelling} <span style="color:var(--dim)">(${pct(c.aanstelling,c.leads)})</span></td>
+    <td>${c.afgesloten}</td></tr>`).join('');
+  const klasseRijen = r.klassen.map(k => `<tr><td><span class="badge k${k.klasse}">${k.klasse}</span></td>
+    <td>${k.leads}</td><td>${k.benaderd}</td><td>${k.aanstelling}</td><td><b>${k.conversie_pct}%</b></td></tr>`).join('');
+  const d = r.doorlooptijd;
+  $('#rapportInhoud').innerHTML = `
+    ${tekenDonuts()}
+    <div class="kaarten" style="margin:0">
+      <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
+      <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
+      <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen totaal</span></div>
+    </div>
+    <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
+      <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
+      <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
+      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd" betekent: ooit de status Benaderd of verder bereikt.</p></div>
+    <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
+      <table style="box-shadow:none"><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+      <tbody>${klasseRijen}</tbody></table>
+      <p style="font-size:12.5px;color:var(--dim)">Converteren A-leads structureel beter dan B? Dan klopt de scoreweging; zo niet, dan stellen we die bij.</p></div>`;
+}
+
+// ---- kaart ----
+function tekenKaart() {
+  if (!kaart) {
+    kaart = L.map('kaart').setView([52.2, 5.3], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(kaart);
+    markerLaag = L.layerGroup().addTo(kaart);
+  }
+  kaart.invalidateSize();
+  markerLaag.clearLayers();
+  const kleurVan = am => (AMS.find(a=>a.naam===am)||{}).kleur || '#6b7280';
+  LEADS.filter(l=>l.lat&&l.lon).forEach(l => {
+    L.circleMarker([l.lat,l.lon], {
+      radius: l.klasse==='A'?9:l.klasse==='B'?7:5,
+      color:'#1c2330', weight:2, fillOpacity:.95,
+      fillColor: l.am ? kleurVan(l.am) : '#f97316'
+    }).bindPopup(`<b>${l.naam}</b><br>${l.plaats||''} · klasse ${l.klasse}<br>${l.am?'AM: '+l.am:'nog niet geclaimd'}<br>
+      <a href="#" onclick="leadDialog.close?.();openLead(${l.id});return false">openen</a>`)
+      .addTo(markerLaag);
+  });
+  $('#kaartLegenda').innerHTML =
+    `<span><span class="stip" style="background:#f97316"></span>Niet geclaimd</span>` +
+    AMS.map(a=>`<span><span class="stip" style="background:${a.kleur}"></span>${a.naam}</span>`).join('') +
+    `<span style="color:var(--dim)">· groot=A, klein=C · ${LEADS.filter(l=>!l.lat).length} lead(s) zonder locatie niet getoond</span>`;
+}
+
+// ---- import ----
+let fXlsx = null, fCsv = null;
+function koppelZone(zoneId, inputId, zet, label) {
+  const dz = $(zoneId), inp = $(inputId);
+  dz.onclick = () => inp.click();
+  inp.onchange = () => { zet(inp.files[0]); dz.textContent = '✓ ' + inp.files[0].name; dz.classList.add('vol'); check(); };
+  dz.ondragover = e => e.preventDefault();
+  dz.ondrop = e => { e.preventDefault(); zet(e.dataTransfer.files[0]);
+    dz.textContent = '✓ ' + e.dataTransfer.files[0].name; dz.classList.add('vol'); check(); };
+}
+const check = () => $('#importKnop').disabled = !(fXlsx && fCsv);
+koppelZone('#dzXlsx', '#fileXlsx', f=>fXlsx=f);
+koppelZone('#dzCsv', '#fileCsv', f=>fCsv=f);
+
+$('#importKnop').onclick = async () => {
+  const fd = new FormData();
+  fd.append('xlsx', fXlsx); fd.append('register_csv', fCsv);
+  $('#importKnop').disabled = true; $('#importKnop').textContent = 'Bezig… (geocoderen kan even duren)';
+  const m = $('#importMelding'); m.style.display='block'; m.textContent='Verwerken…';
+  try {
+    const r = await api('/api/import', {method:'POST', body:fd});
+    m.textContent = `Klaar: ${r.nieuw} nieuwe leads toegevoegd, ${r.dubbel_overgeslagen} al bekend (overgeslagen), ${r.gematcht_met_register} verrijkt vanuit het register.`;
+    if (r.opnieuw_binnengekomen && r.opnieuw_binnengekomen.length)
+      m.textContent += ` Opnieuw binnengekomen: ${r.opnieuw_binnengekomen.slice(0,5).join(', ')}${r.opnieuw_binnengekomen.length>5?` en ${r.dubbel_overgeslagen-5} andere`:''} — zie de ×-markering in de leadlijst.`;
+    if (r.heropend)
+      m.textContent += ` ${r.heropend} eerder afgesloten lead(s) automatisch heropend met status "Opnieuw binnen".`;
+    laadAlles(); laadImports();
+    if (r.nieuw > 0 && META.serper) { m.textContent += ' Websites worden nu automatisch opgezocht en gescand…'; verrijkAlles(); }
+  } catch(e) { m.textContent = 'Fout: ' + e.message; }
+  $('#importKnop').disabled = false; $('#importKnop').textContent = 'Importeer';
+};
+
+async function laadImports() {
+  const s = await api('/api/stats');
+  $('#importHistorie').innerHTML = s.imports.map(i =>
+    `${i.ts} — ${i.bestanden}: <b>${i.nieuw} nieuw</b>, ${i.dubbel} dubbel`).join('<br>') || 'Nog geen imports.';
+}
+
+// ---- team ----
+function tekenTeam() {
+  $('#amLijst').innerHTML = AMS.map(a =>
+    `<div style="padding:6px 0"><span class="stip" style="background:${a.kleur}"></span>${a.naam}
+     <small style="color:var(--dim)">· ${LEADS.filter(l=>l.am===a.naam).length} leads,
+     ${LEADS.filter(l=>l.am===a.naam&&l.status==='Aanstelling').length} aanstellingen</small>
+     <a href="#" style="color:#b91c1c;font-size:12px;margin-left:8px" onclick="verwijderAm('${a.naam.replace(/'/g,"\\'")}');return false">verwijderen</a></div>`).join('')
+    || '<i style="color:var(--dim)">Nog geen AM\'s toegevoegd.</i>';
+}
+// ---- website-verrijking ----
+let META = {};
+async function verrijkAlles() {
+  const knop = $('#verrijkKnop'), status = $('#verrijkStatus');
+  knop.disabled = true;
+  let totaal = 0, gevonden = 0;
+  try {
+    while (true) {
+      const r = await api('/api/verrijk?max_leads=5', {method:'POST'});
+      totaal += r.verwerkt.length;
+      gevonden += r.verwerkt.filter(v=>v.website).length;
+      status.textContent = `${totaal} leads verwerkt (${gevonden} met website), nog ${r.resterend} te gaan…`;
+      if (r.resterend === 0 || r.verwerkt.length === 0) break;
+    }
+    status.textContent = totaal === 0
+      ? 'Alle leads zijn al verrijkt.'
+      : `Klaar: ${totaal} leads verwerkt, bij ${gevonden} een website gevonden en gescand.`;
+    laadAlles();
+  } catch(e) { status.textContent = 'Fout: ' + e.message; }
+  knop.disabled = false;
+}
+$('#verrijkKnop').onclick = verrijkAlles;
+
+window.verwijderAm = async naam => {
+  if (!confirm(`AM "${naam}" verwijderen? Zijn geclaimde leads gaan terug naar Nieuw; leads met een verdere status blijven staan.`)) return;
+  await api('/api/ams/' + encodeURIComponent(naam), {method:'DELETE'});
+  laadAlles();
+};
+$('#amToevoegen').onclick = async () => {
+  const naam = $('#amNaam').value.trim();
+  if (!naam) return;
+  await api('/api/ams', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({naam, kleur:$('#amKleur').value})});
+  $('#amNaam').value=''; laadAlles();
+};
+
+$('#scoreUitlegPaneel').innerHTML = SCORE_UITLEG;
+$('#loginKnop').onclick = () => probeerLogin();
+$('#loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') probeerLogin(); });
+
+laadAlles().catch(e => { if (e.message !== 'Toegangscode vereist') console.error(e); });
+laadImports().catch(e => { if (e.message !== 'Toegangscode vereist') console.error(e); });
+</script>
+</body>
+</html>

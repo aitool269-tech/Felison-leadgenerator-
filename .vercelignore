@@ -1,0 +1,9 @@
+leads.db
+__pycache__
+README.md
+.env
+.env.production
+.env.local
+.vercel-demo
+.vercel-prod
+.toegangscode.txt

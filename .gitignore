@@ -1,0 +1,22 @@
+# Geheimen — NOOIT naar GitHub
+.env
+.env.*
+.toegangscode.txt
+
+# Vercel projectkoppelingen (bevatten org/project-ids + gepulde env)
+.vercel
+.vercel-demo
+.vercel-prod
+
+# Database met echte leaddata (persoonsgegevens)
+*.db
+leads.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store

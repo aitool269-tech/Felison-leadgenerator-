@@ -1,0 +1,5 @@
+fastapi
+python-multipart
+openpyxl
+requests
+pg8000
