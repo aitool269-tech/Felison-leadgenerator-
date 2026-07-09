@@ -528,6 +528,185 @@ def zet_vervolg(lead_id: int, body: VervolgBody):
     return {"ok": True}
 
 
+# Geclaimde leads die nog een presentje van marketing moeten krijgen.
+OPENSTAAND_PRESENTJE_SQL = ("am IS NOT NULL AND presentje_datum IS NULL "
+                            "AND status NOT IN ('Afgewezen','Geen interesse')")
+
+
+def norm_datum(v):
+    """Excel-cel of tekst naar 'jjjj-mm-dd'; None als het geen datum is."""
+    if isinstance(v, datetime):
+        return v.date().isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    s = str(v or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return s
+    m = re.fullmatch(r"(\d{1,2})-(\d{1,2})-(\d{4})", s)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    return None
+
+
+def registreer_presentje(con, lead_id, datum, soort, vervolg_datum=None, vervolg_actie=None):
+    """Zet presentje-velden, optioneel de vervolgactie voor de AM, en logt een contactmoment."""
+    con.execute("UPDATE leads SET presentje_datum=?, presentje_type=? WHERE id=?",
+                (datum, soort, lead_id))
+    if vervolg_datum or vervolg_actie:
+        con.execute("UPDATE leads SET vervolg_datum=?, vervolg_actie=? WHERE id=?",
+                    (vervolg_datum or None, vervolg_actie or None, lead_id))
+    con.execute("INSERT INTO contactmomenten(lead_id, type, notitie, am) VALUES(?,?,?,?)",
+                (lead_id, "Presentje", f"{soort} verstuurd", "Marketing"))
+
+
+class PresentjeBody(BaseModel):
+    datum: str
+    type: str
+    vervolg_datum: str = None
+    vervolg_actie: str = None
+
+
+@app.post("/api/leads/{lead_id}/presentje")
+def zet_presentje(lead_id: int, body: PresentjeBody):
+    datum = norm_datum(body.datum)
+    if not datum:
+        raise HTTPException(400, "Ongeldige datum; gebruik jjjj-mm-dd")
+    con = DB()
+    if not con.execute("SELECT 1 FROM leads WHERE id=?", (lead_id,)).fetchone():
+        con.close()
+        raise HTTPException(404, "Lead niet gevonden")
+    soorten = {r["naam"] for r in con.execute("SELECT naam FROM presentje_types")}
+    if body.type not in soorten:
+        con.close()
+        raise HTTPException(400, f"Onbekend soort presentje '{body.type}' — beheer de lijst via Instellingen")
+    registreer_presentje(con, lead_id, datum, body.type,
+                         norm_datum(body.vervolg_datum), body.vervolg_actie)
+    con.commit(); con.close()
+    return {"ok": True}
+
+
+PRESENTJE_EXPORT_KOP = ["Vergunningnr", "Naam", "Plaats", "AM", "Adres", "Postcode", "Contactpersoon",
+                        "Presentje soort", "Verstuurd op (jjjj-mm-dd)",
+                        "Vervolgactie AM", "Vervolgdatum (jjjj-mm-dd)"]
+
+
+@app.get("/api/presentjes/export")
+def presentjes_export():
+    """Werklijst voor marketing: geclaimde leads zonder presentje, met invulkolommen."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+    con = DB()
+    rows = list(con.execute(f"SELECT * FROM leads WHERE {OPENSTAAND_PRESENTJE_SQL} ORDER BY am, naam"))
+    con.close()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Presentjes"
+    ws.append(PRESENTJE_EXPORT_KOP)
+    for cel in ws[1]:
+        cel.font = Font(bold=True)
+    ws.freeze_panes = "A2"
+    for r in rows:
+        ws.append([r["vergunningnummer"], r["naam"], r["plaats"], r["am"], r["adres"],
+                   r["postcode"], r["contactpersoon"], None, None, None, None])
+    for i, breedte in enumerate([14, 40, 18, 14, 26, 10, 18, 18, 22, 26, 22], 1):
+        ws.column_dimensions[get_column_letter(i)].width = breedte
+    buf = io.BytesIO()
+    wb.save(buf)
+    naam = f"presentjes-{date.today().isoformat()}.xlsx"
+    return Response(buf.getvalue(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{naam}"'})
+
+
+@app.post("/api/presentjes/import")
+async def presentjes_import(xlsx: UploadFile = File(...)):
+    """Ingevulde presentjes-export terug inlezen: matcht op vergunningnummer,
+    verwerkt rijen met soort + verstuurd-op, en meldt fouten per rij terug."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(await xlsx.read()), read_only=True)
+    except Exception:
+        raise HTTPException(400, "Kon het xlsx-bestand niet lezen — is dit de presentjes-export?")
+    rows = list(wb.worksheets[0].iter_rows(values_only=True))
+    if not rows:
+        raise HTTPException(400, "Leeg bestand")
+    # Kolommen op kop-tekst zoeken zodat marketing kolommen mag verplaatsen/verwijderen.
+    kop = {str(h or "").strip().lower(): n for n, h in enumerate(rows[0])}
+    def kol(*zoek):
+        return next((n for k, n in kop.items() if any(z in k for z in zoek)), None)
+    k_vergunning, k_soort, k_datum = kol("vergunningnr"), kol("presentje soort"), kol("verstuurd op")
+    k_vactie, k_vdatum = kol("vervolgactie"), kol("vervolgdatum")
+    if k_vergunning is None or k_soort is None or k_datum is None:
+        raise HTTPException(400, "Bestand mist kolommen; verwacht o.a. Vergunningnr, Presentje soort, Verstuurd op")
+
+    con = DB()
+    soorten = {r["naam"] for r in con.execute("SELECT naam FROM presentje_types")}
+    verwerkt, overgeslagen, fouten = 0, 0, []
+    for r in rows[1:]:
+        def cel(n):
+            v = r[n] if n is not None and n < len(r) else None
+            return str(v).strip() if isinstance(v, str) else v
+        vergunning = cel(k_vergunning)
+        if vergunning is None:
+            continue  # lege rij
+        vergunning = str(vergunning)
+        soort, datum_raw = cel(k_soort), cel(k_datum)
+        if not soort and not datum_raw:
+            overgeslagen += 1  # nog niet ingevuld door marketing
+            continue
+        lead = con.execute("SELECT id, naam FROM leads WHERE vergunningnummer=?", (vergunning,)).fetchone()
+        if not lead:
+            fouten.append(f"{vergunning}: geen lead met dit vergunningnummer")
+            continue
+        datum = norm_datum(datum_raw)
+        if not soort or not datum:
+            fouten.append(f"{lead['naam']}: soort én geldige verstuurd-op-datum (jjjj-mm-dd) zijn verplicht")
+            continue
+        if soort not in soorten:
+            fouten.append(f"{lead['naam']}: onbekend soort '{soort}' — voeg het eerst toe via Instellingen")
+            continue
+        registreer_presentje(con, lead["id"], datum, soort,
+                             norm_datum(cel(k_vdatum)), cel(k_vactie) or None)
+        verwerkt += 1
+    con.commit(); con.close()
+    return {"verwerkt": verwerkt, "overgeslagen": overgeslagen, "fouten": fouten}
+
+
+class PresentjeTypeBody(BaseModel):
+    naam: str
+
+
+@app.get("/api/presentje_types")
+def get_presentje_types():
+    con = DB()
+    out = [r["naam"] for r in con.execute("SELECT naam FROM presentje_types ORDER BY naam")]
+    con.close()
+    return out
+
+
+@app.post("/api/presentje_types")
+def add_presentje_type(body: PresentjeTypeBody):
+    naam = body.naam.strip()
+    if not naam:
+        raise HTTPException(400, "Naam is verplicht")
+    con = DB()
+    if con.pg:
+        con.execute("INSERT INTO presentje_types(naam) VALUES(?) ON CONFLICT(naam) DO NOTHING", (naam,))
+    else:
+        con.execute("INSERT OR IGNORE INTO presentje_types(naam) VALUES(?)", (naam,))
+    con.commit(); con.close()
+    return {"ok": True}
+
+
+@app.delete("/api/presentje_types/{naam}")
+def del_presentje_type(naam: str):
+    # Reeds geregistreerde presentjes op leads behouden hun soort (historie).
+    con = DB()
+    con.execute("DELETE FROM presentje_types WHERE naam=?", (naam,))
+    con.commit(); con.close()
+    return {"ok": True}
+
+
 class ContactBody(BaseModel):
     type: str
     notitie: str = None
@@ -577,6 +756,7 @@ def export_excel(status: str = None, klasse: str = None, provincie: str = None, 
         ("Status", "status", 15), ("AM", "am", 14), ("Contactpersoon", "contactpersoon", 18),
         ("Telefoon", "telefoon", 14), ("E-mail", "email", 24), ("Website", "website", 28),
         ("Vervolgactie", "vervolg_actie", 18), ("Vervolgdatum", "vervolg_datum", 13),
+        ("Presentje", "presentje_type", 16), ("Presentje verstuurd", "presentje_datum", 14),
         ("Vergunning per", "begindatum_dienst", 14), ("Keren binnengekomen", "keren_binnen", 12),
         ("KvK", "kvk", 11), ("Rechtsvorm", "rechtsvorm", 18), ("Adres", "adres", 26),
         ("Postcode", "postcode", 10), ("Beperkingen", "beperkingen", 40),
@@ -605,7 +785,8 @@ def export_excel(status: str = None, klasse: str = None, provincie: str = None, 
 def conversie():
     """Funnel per maandcohort, conversie per scoreklasse en doorlooptijden."""
     con = DB()
-    leads = list(con.execute("SELECT id, klasse, status, aangemaakt FROM leads"))
+    leads = list(con.execute(
+        "SELECT id, klasse, status, aangemaakt, am, presentje_datum, presentje_type FROM leads"))
     log = list(con.execute("SELECT lead_id, status, ts FROM status_log"))
     con.close()
 
@@ -653,9 +834,38 @@ def conversie():
         if eerste:
             tot_actie.append(max(0, (eerste - start).days))
 
+    # Presentjes: aantallen, verdeling en effect op conversie (alleen geclaimde
+    # leads als vergelijking, want een presentje volgt altijd op een claim).
+    met_presentje = [l for l in leads if l["presentje_datum"]]
+    per_soort, per_maand = {}, {}
+    for l in met_presentje:
+        per_soort[l["presentje_type"] or "?"] = per_soort.get(l["presentje_type"] or "?", 0) + 1
+        maand = str(l["presentje_datum"])[:7]
+        per_maand[maand] = per_maand.get(maand, 0) + 1
+    openstaand = sum(1 for l in leads if l["am"] and not l["presentje_datum"]
+                     and l["status"] not in ("Afgewezen", "Geen interesse"))
+
+    def effect_rij(label, groep):
+        n = len(groep)
+        gesprek = sum(1 for l in groep if bereikt(l, "In gesprek", "Aanstelling"))
+        aanst = sum(1 for l in groep if bereikt(l, "Aanstelling"))
+        return {"label": label, "leads": n, "in_gesprek": gesprek, "aanstelling": aanst,
+                "conversie_pct": round(100 * aanst / n, 1) if n else 0}
+
+    geclaimd = [l for l in leads if l["am"]]
+    presentjes = {
+        "verstuurd": len(met_presentje),
+        "openstaand": openstaand,
+        "per_soort": dict(sorted(per_soort.items(), key=lambda x: -x[1])),
+        "per_maand": [{"maand": m, "aantal": n} for m, n in sorted(per_maand.items())],
+        "effect": [effect_rij("Met presentje", [l for l in geclaimd if l["presentje_datum"]]),
+                   effect_rij("Zonder presentje", [l for l in geclaimd if not l["presentje_datum"]])],
+    }
+
     return {
         "cohorten": sorted(cohorten.values(), key=lambda c: c["maand"]),
         "klassen": sorted(klassen.values(), key=lambda k: k["klasse"]),
+        "presentjes": presentjes,
         "doorlooptijd": {
             "gem_dagen_tot_eerste_actie": round(sum(tot_actie) / len(tot_actie), 1) if tot_actie else None,
             "gem_dagen_tot_aanstelling": round(sum(tot_aanstelling) / len(tot_aanstelling), 1) if tot_aanstelling else None,

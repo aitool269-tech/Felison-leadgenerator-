@@ -217,6 +217,21 @@
   </div>
 
   <div class="paneel" style="margin-top:16px">
+    <h3>Presentjes (marketing)</h3>
+    <p>Marketing stuurt geclaimde leads een presentje. Beheer hier de soorten; vastleggen kan per lead (leaddetail) of in bulk: exporteer de lijst met geclaimde leads zonder presentje, vul de kolommen in en importeer het bestand weer.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="ptNaam" placeholder="Soort presentje, bijv. wijnpakket" style="flex:1">
+      <button class="knop" id="ptToevoegen">Toevoegen</button>
+    </div>
+    <div id="ptLijst" style="margin-top:14px"></div>
+    <button class="knop secundair" id="presentjeExportKnop" style="margin-top:8px">⬇ Exporteer te versturen presentjes</button>
+    <div class="dropzone" id="dzPresentje">Ingevulde presentjes-lijst (.xlsx)</div>
+    <input type="file" id="filePresentje" accept=".xlsx" hidden>
+    <button class="knop" id="presentjeImportKnop" disabled>Importeer presentjes</button>
+    <div class="melding" id="presentjeMelding"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
     <h3>Website-verrijking</h3>
     <p>Zoekt per lead automatisch de website op (via Google) en scant die op verzuim-, collectieve inkomens- en personeelsverzekeringen. Draait vanzelf na elke import; hier kun je hem ook handmatig starten voor leads die nog niet verrijkt zijn.</p>
     <button class="knop" id="verrijkKnop">Verrijk leads zonder websitescan</button>
@@ -272,7 +287,7 @@ function toonScoreUitleg() {
     <div style="margin-top:14px;text-align:right"><button class="knop secundair" onclick="leadDialog.close()">Sluiten</button></div>`;
   leadDialog.showModal();
 }
-let LEADS = [], AMS = [], STATUSSEN = [], kaart = null, markerLaag = null;
+let LEADS = [], AMS = [], PRESENTJE_TYPES = [], STATUSSEN = [], kaart = null, markerLaag = null;
 
 // ---- tabs ----
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -354,8 +369,8 @@ async function laadAlles() {
       document.querySelector('.inhoud').prepend(w);
     }
   }
-  [LEADS, AMS] = await Promise.all([api('/api/leads'), api('/api/ams')]);
-  vulFilters(); tekenTabel(); tekenStats(); tekenTeam(); tekenMeldingen();
+  [LEADS, AMS, PRESENTJE_TYPES] = await Promise.all([api('/api/leads'), api('/api/ams'), api('/api/presentje_types')]);
+  vulFilters(); tekenTabel(); tekenStats(); tekenTeam(); tekenPresentjeTypes(); tekenMeldingen();
   if (!$('#tab-kaart').hidden) tekenKaart();
 }
 
@@ -387,7 +402,7 @@ function tekenTabel() {
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
       <td>${fmtDatum(l.begindatum_dienst)}</td>
-      <td><span class="status ${stKlasse(l.status)}">${l.status}</span></td>
+      <td><span class="status ${stKlasse(l.status)}">${l.status}</span>${l.presentje_datum?` <span title="Presentje: ${l.presentje_type} verstuurd op ${fmtDatum(l.presentje_datum)}" style="cursor:default">🎁</span>`:''}</td>
       <td>${l.am||'—'}</td>
       <td><button class="knop secundair" onclick="openLead(${l.id})">Open</button></td>
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Geen leads — importeer eerst de AFM-bestanden.</td></tr>';
@@ -422,6 +437,7 @@ const TL_ICONEN = {
   'Gemaild': '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7.5l9 6 9-6"/>',
   'Gesproken': '<path d="M21 11.5a8 8 0 0 1-8 8H4l2.3-2.8A8 8 0 1 1 21 11.5z"/>',
   'Anders': '<circle cx="12" cy="12" r="1.2"/><circle cx="6.5" cy="12" r="1.2"/><circle cx="17.5" cy="12" r="1.2"/>',
+  'Presentje': '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
   'status': '<path d="M5 21V4"/><path d="M5 4h13l-2.6 4L18 12H5"/>'
 };
 function tekenTijdlijn(feed) {
@@ -461,6 +477,7 @@ window.openLead = async id => {
       Score <b>${l.klasse} (${l.score})</b>: ${l.score_uitleg||''}
       ${l.website_uitleg?`<br>Websitescan (+${l.website_score||0}): ${l.website_uitleg}`:''}
       ${l.beperkingen?`<br>⚠ <i>${l.beperkingen}</i>`:''}
+      ${l.presentje_datum?`<br>🎁 <b>${l.presentje_type}</b> verstuurd op ${fmtDatum(l.presentje_datum)}`:''}
       <br>Binnengekomen in AFM-bestanden: <b>${historie.length}×</b> (${historie.map(h=>fmtDatum(h.ts)).join(' · ')})
     </div>
     <label>Accountmanager</label>
@@ -481,6 +498,10 @@ window.openLead = async id => {
         <input type="text" id="dVervolgActie" value="${l.vervolg_actie||''}" placeholder="bijv. terugbellen" style="width:100%"></div>
       <div><label>Vervolgdatum</label>
         <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:12px;background:#FAFAFE;font:inherit"></div>
+      <div><label>Presentje (marketing)</label>
+        <select id="dPresentjeType" style="width:100%"><option value="">— soort —</option>${PRESENTJE_TYPES.map(t=>`<option ${t===l.presentje_type?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>Presentje verstuurd op</label>
+        <input type="date" id="dPresentjeDatum" value="${l.presentje_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:12px;background:#FAFAFE;font:inherit"></div>
     </div>
     <label>Contactmoment vastleggen</label>
     <div style="display:flex;gap:8px">
@@ -546,6 +567,12 @@ window.openLead = async id => {
     const v = {datum:$('#dVervolgDatum').value, actie:$('#dVervolgActie').value.trim()};
     if (v.datum!==(l.vervolg_datum||'') || v.actie!==(l.vervolg_actie||''))
       await api(`/api/leads/${id}/vervolg`, json(v));
+    const pj = {type:$('#dPresentjeType').value, datum:$('#dPresentjeDatum').value};
+    if (pj.type && pj.datum && (pj.type!==(l.presentje_type||'') || pj.datum!==(l.presentje_datum||''))) {
+      try { await api(`/api/leads/${id}/presentje`, json(pj)); }
+      catch(e){ return alert(e.message); }
+    } else if ((pj.type && !pj.datum) || (!pj.type && pj.datum))
+      return alert('Vul bij het presentje zowel het soort als de verstuurd-datum in.');
     leadDialog.close(); laadAlles();
   };
   leadDialog.showModal();
@@ -702,9 +729,17 @@ function tekenDonuts() {
       ${donut(statussen,'status')}${donut(klassen,'klasse')}${donut(ams,'per AM')}
     </div></div>`;
 }
+const PRESENTJE_PALET = ['#5B63C7','#1D9E75','#EF9F27','#E24B4A','#97C459','#BA7517','#0B9455','#8A90A6'];
 async function laadRapport() {
   const r = await api('/api/conversie');
   const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '—';
+  const pj = r.presentjes;
+  const soorten = Object.entries(pj.per_soort).map(([label,value],i) =>
+    ({label, value, kleur:PRESENTJE_PALET[i % PRESENTJE_PALET.length]}));
+  const pjMaandRijen = pj.per_maand.map(m => `<tr><td>${m.maand}</td><td>${m.aantal}</td></tr>`).join('');
+  const pjEffectRijen = pj.effect.map(e => `<tr><td>${e.label}</td><td>${e.leads}</td>
+    <td>${e.in_gesprek} <span style="color:var(--dim)">(${pct(e.in_gesprek,e.leads)})</span></td>
+    <td>${e.aanstelling}</td><td><b>${e.conversie_pct}%</b></td></tr>`).join('');
   const cohortRijen = r.cohorten.map(c => `<tr><td>${c.maand}</td><td>${c.leads}</td>
     <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
     <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
@@ -727,7 +762,23 @@ async function laadRapport() {
     <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
       <table style="box-shadow:none"><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
       <tbody>${klasseRijen}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Converteren A-leads structureel beter dan B? Dan klopt de scoreweging; zo niet, dan stellen we die bij.</p></div>`;
+      <p style="font-size:12.5px;color:var(--dim)">Converteren A-leads structureel beter dan B? Dan klopt de scoreweging; zo niet, dan stellen we die bij.</p></div>
+    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Presentjes 🎁</h3>
+      <div class="kaarten" style="margin:0 0 18px">
+        <div class="stat"><b>${pj.verstuurd}</b><span>presentjes verstuurd</span></div>
+        <div class="stat"><b>${pj.openstaand}</b><span>geclaimd, nog geen presentje</span></div>
+      </div>
+      <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start">
+        ${donut(soorten,'per soort')}
+        <div style="flex:1;min-width:220px">
+          <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Verstuurd</th></tr></thead>
+          <tbody>${pjMaandRijen || '<tr><td colspan="2" style="color:var(--dim)">Nog geen presentjes verstuurd.</td></tr>'}</tbody></table>
+        </div>
+      </div>
+      <h4>Effect op conversie</h4>
+      <table style="box-shadow:none"><thead><tr><th></th><th>Geclaimde leads</th><th>In gesprek</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+      <tbody>${pjEffectRijen}</tbody></table>
+      <p style="font-size:12.5px;color:var(--dim)">Vergelijking over geclaimde leads: bereiken kantoren die een presentje kregen vaker "In gesprek" of "Aanstelling" dan kantoren zonder presentje?</p></div>`;
 }
 
 // ---- kaart ----
@@ -802,6 +853,62 @@ function tekenTeam() {
      <a href="#" style="color:#b91c1c;font-size:12px;margin-left:8px" onclick="verwijderAm('${a.naam.replace(/'/g,"\\'")}');return false">verwijderen</a></div>`).join('')
     || '<i style="color:var(--dim)">Nog geen AM\'s toegevoegd.</i>';
 }
+// ---- presentjes (marketing) ----
+function tekenPresentjeTypes() {
+  $('#ptLijst').innerHTML = PRESENTJE_TYPES.map(t =>
+    `<div style="padding:6px 0">🎁 ${t}
+     <small style="color:var(--dim)">· ${LEADS.filter(l=>l.presentje_type===t).length}× verstuurd</small>
+     <a href="#" style="color:#b91c1c;font-size:12px;margin-left:8px" onclick="verwijderPresentjeType('${t.replace(/'/g,"\\'")}');return false">verwijderen</a></div>`).join('')
+    || '<i style="color:var(--dim)">Nog geen soorten toegevoegd — voeg er minstens één toe voordat presentjes vastgelegd kunnen worden.</i>';
+}
+$('#ptToevoegen').onclick = async () => {
+  const naam = $('#ptNaam').value.trim();
+  if (!naam) return;
+  await api('/api/presentje_types', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({naam})});
+  $('#ptNaam').value=''; laadAlles();
+};
+window.verwijderPresentjeType = async naam => {
+  if (!confirm(`Soort "${naam}" verwijderen? Al verstuurde presentjes van dit soort blijven op de leads staan.`)) return;
+  await api('/api/presentje_types/' + encodeURIComponent(naam), {method:'DELETE'});
+  laadAlles();
+};
+$('#presentjeExportKnop').onclick = async () => {
+  const knop = $('#presentjeExportKnop'); knop.disabled = true;
+  try {
+    const r = await fetch('/api/presentjes/export', {headers:{'X-Toegangscode': huidigeCode()}});
+    if (!r.ok) throw new Error('Export mislukt (' + r.status + ')');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = 'presentjes-' + new Date().toISOString().slice(0,10) + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) { alert(e.message); }
+  knop.disabled = false;
+};
+let fPresentje = null;
+{
+  const dz = $('#dzPresentje'), inp = $('#filePresentje');
+  const zet = f => { if (!f) return; fPresentje = f; dz.textContent = '✓ ' + f.name; dz.classList.add('vol');
+                     $('#presentjeImportKnop').disabled = false; };
+  dz.onclick = () => inp.click();
+  inp.onchange = () => zet(inp.files[0]);
+  dz.ondragover = e => e.preventDefault();
+  dz.ondrop = e => { e.preventDefault(); zet(e.dataTransfer.files[0]); };
+}
+$('#presentjeImportKnop').onclick = async () => {
+  const fd = new FormData();
+  fd.append('xlsx', fPresentje);
+  const knop = $('#presentjeImportKnop'), m = $('#presentjeMelding');
+  knop.disabled = true; m.style.display='block'; m.textContent='Verwerken…';
+  try {
+    const r = await api('/api/presentjes/import', {method:'POST', body:fd});
+    m.innerHTML = `Klaar: <b>${r.verwerkt}</b> presentje(s) vastgelegd, ${r.overgeslagen} rij(en) nog niet ingevuld (overgeslagen).`
+      + (r.fouten.length ? `<br>⚠ ${r.fouten.length} fout(en):<br>` + r.fouten.map(f=>`· ${f}`).join('<br>') : '');
+    laadAlles();
+  } catch(e) { m.textContent = 'Fout: ' + e.message; }
+  knop.disabled = false;
+};
+
 // ---- website-verrijking ----
 let META = {};
 async function verrijkAlles() {

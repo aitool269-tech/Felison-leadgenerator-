@@ -29,11 +29,13 @@ CREATE TABLE IF NOT EXISTS leads(
     website TEXT,
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
+    presentje_datum TEXT, presentje_type TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
     aangemaakt TEXT DEFAULT (datetime('now'))
 );;
+CREATE TABLE IF NOT EXISTS presentje_types(naam TEXT PRIMARY KEY);;
 CREATE TABLE IF NOT EXISTS status_log(
     id INTEGER PRIMARY KEY,
     lead_id INTEGER REFERENCES leads(id),
@@ -77,11 +79,13 @@ CREATE TABLE IF NOT EXISTS leads(
     website TEXT,
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
+    presentje_datum TEXT, presentje_type TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
     aangemaakt TIMESTAMP DEFAULT now()
 );;
+CREATE TABLE IF NOT EXISTS presentje_types(naam TEXT PRIMARY KEY);;
 CREATE TABLE IF NOT EXISTS status_log(
     id SERIAL PRIMARY KEY,
     lead_id INTEGER REFERENCES leads(id),
@@ -185,6 +189,8 @@ MIGRATIES = [
     "ALTER TABLE leads ADD COLUMN contactpersoon TEXT",
     "ALTER TABLE leads ADD COLUMN vervolg_datum TEXT",
     "ALTER TABLE leads ADD COLUMN vervolg_actie TEXT",
+    "ALTER TABLE leads ADD COLUMN presentje_datum TEXT",
+    "ALTER TABLE leads ADD COLUMN presentje_type TEXT",
 ]
 
 
