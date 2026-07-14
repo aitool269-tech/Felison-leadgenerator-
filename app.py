@@ -15,8 +15,7 @@ from pathlib import Path
 import openpyxl
 import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
 
 BASE = Path(__file__).parent
@@ -955,7 +954,10 @@ def meta():
 
 @app.get("/")
 def index():
-    return FileResponse(BASE / "static" / "index.html", headers={"Cache-Control": "no-cache"})
-
-
-app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
+    # Lokaal (uvicorn) serveren we het bestand direct; op Vercel is public/
+    # niet altijd in de functiebundel aanwezig — dan sturen we door naar
+    # /index.html, dat door het CDN uit public/ wordt geserveerd.
+    pad = BASE / "public" / "index.html"
+    if pad.exists():
+        return FileResponse(pad, headers={"Cache-Control": "no-cache"})
+    return RedirectResponse("/index.html", status_code=307)
