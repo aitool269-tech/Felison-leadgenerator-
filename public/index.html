@@ -7,64 +7,70 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#ECEEF9; --paneel:#fff; --rand:#E8E9F4; --tekst:#181B27; --dim:#8A90A6;
-    --zwart:#15171F; --lav:#98A0F0; --lavd:#5B63C7; --lavbg:#EDEEFC;
+    --bg:#EFF1F4; --paneel:#fff; --rand:#EAECF0; --tekst:#1D2433; --dim:#667085;
+    --zwart:#2E90FA; --lav:#53B1FD; --lavd:#175CD3; --lavbg:#EFF6FF;
     --groen:#1E8A5E; --groenbg:#E1F4EA; --amber:#9A6A17; --amberbg:#FAEFDC;
-    --rood:#B93B3B; --roodbg:#FBE9E9; --grijs:#6E7284; --grijsbg:#EFF0F5;
-    --schaduw:0 10px 30px rgba(99,104,164,.08);
+    --rood:#B93B3B; --roodbg:#FBE9E9; --grijs:#6E7284; --grijsbg:#F2F4F7;
+    --schaduw:0 1px 2px rgba(16,24,40,.05);
   }
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.55 'Manrope',-apple-system,'Segoe UI',sans-serif;
-       background:linear-gradient(160deg,#F0F1FC,#E8EAF9 55%,#EDEEFB);color:var(--tekst);min-height:100vh}
-  .app{display:flex;max-width:1440px;margin:0 auto;padding:16px;min-height:100vh}
-  aside{width:228px;flex:none;padding:16px 8px;display:flex;flex-direction:column}
-  .logo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 14px 26px}
-  .woordmerk{display:inline-flex;align-items:baseline;font-weight:800;font-size:26px;line-height:1;letter-spacing:-1px;color:#0A0AA0;font-family:'Manrope',sans-serif}
+  body{margin:0;font:14px/1.55 'Inter',-apple-system,'Segoe UI',sans-serif;
+       background:var(--bg);color:var(--tekst);min-height:100vh}
+  .app{display:flex;max-width:1400px;margin:16px auto;background:#fff;border:1px solid var(--rand);
+       border-radius:20px;min-height:calc(100vh - 32px);overflow:visible;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+  aside{width:236px;flex:none;padding:18px 12px;display:flex;flex-direction:column;border-right:1px solid var(--rand)}
+  .logo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:6px 12px 18px}
+  .woordmerk{display:inline-flex;align-items:baseline;font-weight:800;font-size:25px;line-height:1;letter-spacing:-1px;color:#0A0AA0;font-family:'Manrope',sans-serif}
   .woordmerk svg{height:.95em;width:auto;margin:0 1px;align-self:flex-end;fill:#0A0AA0}
-  .logo .sublabel{font-size:11px;letter-spacing:.16em;font-weight:700;color:var(--dim);text-transform:uppercase}
-  .bel{position:relative;width:38px;height:38px;border-radius:99px;border:0;background:#fff;color:#5A5F75;
-       cursor:pointer;box-shadow:0 4px 14px rgba(90,95,140,.12);display:flex;align-items:center;justify-content:center;flex:none;margin:4px 6px 0 0}
-  .bel:hover{color:var(--tekst)}
-  .beltel{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;
-          background:#E05B5B;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #ECEEF9}
-  .belpaneel{position:absolute;top:52px;left:8px;right:-40px;z-index:60;background:#fff;border-radius:16px;
-             box-shadow:0 18px 48px rgba(30,33,60,.22);padding:10px 14px;max-height:340px;overflow:auto;min-width:250px}
-  .belitem{padding:9px 4px;border-bottom:1px solid #F2F3FA;cursor:pointer;font-size:13px}
+  .logo .sublabel{font-size:10.5px;letter-spacing:.16em;font-weight:700;color:#98A2B3;text-transform:uppercase}
+  .navkop{font-size:10.5px;letter-spacing:.12em;font-weight:700;color:#98A2B3;text-transform:uppercase;padding:14px 12px 6px}
+  .bel{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--rand);background:#fff;color:var(--dim);
+       cursor:pointer;box-shadow:var(--schaduw);display:flex;align-items:center;justify-content:center;flex:none;margin:4px 4px 0 0}
+  .bel:hover{color:var(--tekst);border-color:#D0D5DD}
+  .beltel{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;
+          background:#E05B5B;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+  .belpaneel{position:absolute;top:52px;left:8px;right:-40px;z-index:60;background:#fff;border-radius:12px;border:1px solid var(--rand);
+             box-shadow:0 12px 32px rgba(16,24,40,.14);padding:8px 12px;max-height:340px;overflow:auto;min-width:250px}
+  .belitem{padding:9px 4px;border-bottom:1px solid #F2F4F7;cursor:pointer;font-size:13px}
   .belitem:last-child{border-bottom:0}
-  .belitem:hover{background:#FAFAFE}
+  .belitem:hover{background:#F9FAFB}
   .belitem .sub{font-size:12px;color:var(--dim)}
   .belitem .rood{color:#B93B3B;font-weight:700}
   @media (max-width:880px){.belpaneel{left:auto;right:0;min-width:290px}}
-  nav{display:flex;flex-direction:column;gap:4px}
-  nav button{display:flex;align-items:center;gap:12px;background:none;border:0;padding:11px 14px;border-radius:14px;
-             font:inherit;font-weight:700;font-size:14px;color:#5A5F75;cursor:pointer;text-align:left;width:100%}
-  nav button svg{width:18px;height:18px;flex:none}
-  nav button:hover{color:var(--tekst)}
-  nav button.actief{background:#fff;color:var(--tekst);box-shadow:0 6px 18px rgba(90,95,140,.12)}
+  nav{display:flex;flex-direction:column;gap:2px}
+  nav button{display:flex;align-items:center;gap:11px;background:none;border:1px solid transparent;padding:10px 12px;border-radius:10px;
+             font:inherit;font-weight:600;font-size:13.5px;color:var(--dim);cursor:pointer;text-align:left;width:100%}
+  nav button svg{width:17px;height:17px;flex:none}
+  nav button:hover{color:var(--tekst);background:#F9FAFB}
+  nav button.actief{background:#F9FAFB;color:var(--tekst);border-color:var(--rand);box-shadow:var(--schaduw);font-weight:700}
   .onder{margin-top:auto}
-  .inhoud{flex:1;min-width:0;padding:8px 8px 28px 20px}
+  .inhoud{flex:1;min-width:0;padding:22px 26px 30px}
   main{max-width:1120px}
-  .kaarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
-  .stat{background:var(--paneel);border-radius:20px;padding:16px 18px;box-shadow:var(--schaduw)}
-  .stat .ik{width:32px;height:32px;border-radius:10px;background:var(--lavbg);color:var(--lavd);
-            display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .kaarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+  .stat{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:14px 16px;box-shadow:var(--schaduw)}
+  .stat .ik{width:34px;height:34px;border-radius:10px;border:1px solid var(--rand);background:#fff;color:var(--dim);
+            display:flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:var(--schaduw)}
   .stat .ik svg{width:16px;height:16px}
-  .stat b{font-size:30px;font-weight:800;display:block;letter-spacing:-1px;line-height:1.1}
-  .stat span{color:var(--dim);font-size:12.5px;font-weight:600}
-  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-  select,input[type=text]{padding:10px 16px;border:0;border-radius:999px;background:#fff;font:inherit;font-weight:600;
-                          font-size:13px;color:#3A3F55;box-shadow:0 2px 8px rgba(99,104,164,.07);outline:none;appearance:none}
-  select:focus,input[type=text]:focus{box-shadow:0 0 0 2px var(--lav)}
-  #fZoek{min-width:210px}
-  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--paneel);border-radius:20px;overflow:hidden;box-shadow:var(--schaduw)}
-  th,td{padding:14px 16px;text-align:left;vertical-align:middle}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:800;border-bottom:1px solid var(--rand)}
-  td{border-bottom:1px solid #F2F3FA;font-weight:600}
+  .stat span{color:var(--dim);font-size:12.5px;font-weight:500;display:block}
+  .stat .cijferrij{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:2px}
+  .stat b{font-size:25px;font-weight:800;letter-spacing:-.8px;line-height:1.1}
+  .stat .spark{flex:none;display:flex;align-items:flex-end;gap:2px;height:26px;padding-bottom:2px}
+  .stat .spark i{width:4px;border-radius:2px;background:var(--lav);display:block}
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  select,input[type=text]{padding:9px 14px;border:1px solid var(--rand);border-radius:10px;background:#fff;font:inherit;font-weight:500;
+                          font-size:13px;color:var(--tekst);box-shadow:var(--schaduw);outline:none;appearance:none}
+  select:focus,input[type=text]:focus{border-color:var(--lav);box-shadow:0 0 0 3px rgba(83,177,253,.18)}
+  #fZoek{min-width:220px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--paneel);border:1px solid var(--rand);border-radius:14px;overflow:hidden;box-shadow:var(--schaduw)}
+  th,td{padding:13px 16px;text-align:left;vertical-align:middle}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#98A2B3;font-weight:700;border-bottom:1px solid var(--rand);background:#FCFCFD}
+  td{border-bottom:1px solid #F2F4F7;font-weight:500}
+  td b{font-weight:700}
   tr:last-child td{border-bottom:0}
-  tr:hover td{background:#FAFAFE}
+  tr:hover td{background:#F9FAFB}
   .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:800}
   .kA{background:var(--groenbg);color:var(--groen)} .kB{background:var(--amberbg);color:var(--amber)} .kC{background:var(--grijsbg);color:var(--grijs)}
   .scorebar{height:6px;border-radius:99px;background:#EFF0F7;margin-top:8px;width:96px;overflow:hidden}
@@ -83,23 +89,24 @@
   .mijnrij .sub{font-size:12.5px;color:var(--dim)}
   .telwolkje{display:inline-block;min-width:22px;text-align:center;background:var(--lavbg);color:var(--lavd);border-radius:999px;padding:2px 8px;font-size:12px;font-weight:800;margin-left:8px}
   .telwolkje.rood{background:var(--roodbg);color:var(--rood)}
-  button.knop{background:var(--zwart);color:#fff;border:0;padding:10px 20px;border-radius:999px;cursor:pointer;
-              font:inherit;font-weight:700;font-size:13.5px;transition:transform .12s}
-  button.knop:hover{transform:translateY(-1px)}
+  button.knop{background:var(--zwart);color:#fff;border:1px solid var(--zwart);padding:9px 16px;border-radius:10px;cursor:pointer;
+              font:inherit;font-weight:600;font-size:13.5px;box-shadow:var(--schaduw)}
+  button.knop:hover{background:#1570CD;border-color:#1570CD}
   button.knop.secundair{background:#fff;color:var(--tekst);border:1px solid var(--rand)}
-  button.knop:disabled{opacity:.5;cursor:default;transform:none}
-  #kaart{height:560px;border-radius:20px;border:0;box-shadow:var(--schaduw)}
-  .paneel{background:var(--paneel);border:0;border-radius:20px;padding:26px;max-width:660px;box-shadow:var(--schaduw)}
+  button.knop.secundair:hover{background:#F9FAFB;border-color:#D0D5DD}
+  button.knop:disabled{opacity:.5;cursor:default}
+  #kaart{height:560px;border-radius:14px;border:1px solid var(--rand);box-shadow:var(--schaduw)}
+  .paneel{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:22px;max-width:660px;box-shadow:var(--schaduw)}
   .paneel h3,.paneel h4{letter-spacing:-.2px}
-  .dropzone{border:2px dashed #C9CCEA;border-radius:16px;padding:22px;text-align:center;color:var(--dim);margin:8px 0;cursor:pointer;background:#FAFAFE;font-weight:600}
+  .dropzone{border:1.5px dashed #D0D5DD;border-radius:12px;padding:20px;text-align:center;color:var(--dim);margin:8px 0;cursor:pointer;background:#FCFCFD;font-weight:500}
   .dropzone.vol{border-color:var(--groen);color:var(--groen);background:var(--groenbg)}
-  dialog{border:0;border-radius:22px;padding:26px;width:540px;max-width:92vw;box-shadow:0 24px 60px rgba(30,33,60,.25)}
-  dialog::backdrop{background:rgba(24,27,39,.45);backdrop-filter:blur(2px)}
+  dialog{border:1px solid var(--rand);border-radius:16px;padding:24px;width:540px;max-width:92vw;box-shadow:0 20px 48px rgba(16,24,40,.18)}
+  dialog::backdrop{background:rgba(16,24,40,.4);backdrop-filter:blur(2px)}
   dialog h3{margin-top:0;letter-spacing:-.3px}
-  label{display:block;margin:12px 0 5px;font-size:12.5px;color:var(--dim);font-weight:700}
-  textarea{width:100%;border:1px solid var(--rand);border-radius:12px;padding:10px;font:inherit;outline:none}
-  textarea:focus{border-color:var(--lav)}
-  dialog select,dialog input[type=text]{border:1px solid var(--rand);border-radius:12px;box-shadow:none;background:#FAFAFE}
+  label{display:block;margin:12px 0 5px;font-size:12.5px;color:var(--dim);font-weight:600}
+  textarea{width:100%;border:1px solid var(--rand);border-radius:10px;padding:10px;font:inherit;outline:none}
+  textarea:focus{border-color:var(--lav);box-shadow:0 0 0 3px rgba(83,177,253,.18)}
+  dialog select,dialog input[type=text]{border:1px solid var(--rand);border-radius:10px;box-shadow:none;background:#FCFCFD}
   .tijdlijn{max-height:240px;overflow:auto;margin-top:14px;border-top:1px solid var(--rand);padding-top:4px}
   .tl-dag{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px}
   .tl-item{display:flex;gap:10px;padding:5px 0;align-items:flex-start}
@@ -111,13 +118,14 @@
   .stip{display:inline-block;width:11px;height:11px;border-radius:99px;margin-right:5px;vertical-align:-1px}
   .melding{padding:12px 16px;border-radius:14px;margin:10px 0;background:var(--lavbg);color:var(--lavd);display:none;font-weight:600}
   @media (max-width:880px){
-    .app{flex-direction:column;padding:10px}
-    aside{width:100%;flex-direction:row;align-items:center;padding:6px 2px}
-    .logo{padding:0 12px 0 4px}
+    .app{flex-direction:column;margin:8px;min-height:calc(100vh - 16px)}
+    aside{width:100%;flex-direction:row;align-items:center;padding:8px 10px;border-right:0;border-bottom:1px solid var(--rand)}
+    .logo{padding:0 10px 0 2px}
+    .navkop{display:none}
     nav{flex-direction:row}
-    nav button{padding:9px 12px}
+    nav button{padding:8px 11px}
     .onder{margin:0 0 0 auto}
-    .inhoud{padding:14px 4px}
+    .inhoud{padding:14px 12px}
     .scorebar{width:64px}
   }
 </style>
@@ -136,6 +144,7 @@
     </button>
     <div class="belpaneel" id="belPaneel" hidden></div>
   </div>
+  <div class="navkop">Menu</div>
   <nav>
     <button data-tab="leads" class="actief">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/></svg>
@@ -249,8 +258,8 @@
 
 <dialog id="leadDialog"></dialog>
 
-<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:linear-gradient(160deg,#F0F1FC,#DFE2F7);z-index:99;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:24px;padding:36px;width:360px;max-width:90vw;box-shadow:0 24px 60px rgba(30,33,60,.18)">
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:#EFF1F4;z-index:99;align-items:center;justify-content:center">
+  <div style="background:#fff;border:1px solid #EAECF0;border-radius:16px;padding:34px;width:360px;max-width:90vw;box-shadow:0 12px 32px rgba(16,24,40,.10)">
     <span class="woordmerk" style="font-size:32px">fel<svg viewBox="0 0 11 30" aria-hidden="true" style="height:.95em;width:auto;margin:0 1px;fill:#0A0AA0"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
     <h3 style="margin:10px 0 6px;font-size:16px">Leadgenerator Felison</h3>
     <div id="loginDemoBadge" hidden style="background:var(--lavbg);color:var(--lavd);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin:0 0 10px">🎬 Dit is de demo-omgeving — log in met code: demo</div>
@@ -424,7 +433,8 @@ function tekenStats() {
   const telling = s => LEADS.filter(l=>l.status===s).length;
   const open = LEADS.filter(l=>['Nieuw'].includes(l.status)).length;
   const lopend = LEADS.filter(l=>['Geclaimd','Benaderd','In gesprek','Opnieuw binnen'].includes(l.status)).length;
-  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><b>${n}</b><span>${label}</span></div>`;
+  const spark = () => '<div class="spark">' + [9,14,7,17,11,20,13].map(h=>`<i style="height:${h}px"></i>`).join('') + '</div>';
+  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><span>${label}</span><div class="cijferrij"><b>${n}</b>${spark()}</div></div>`;
   $('#statKaarten').innerHTML =
     kaart('totaal', LEADS.length, 'totaal leads') +
     kaart('claim', open, 'nog te claimen') +
