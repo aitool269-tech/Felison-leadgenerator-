@@ -253,6 +253,7 @@
   <div style="background:#fff;border-radius:24px;padding:36px;width:360px;max-width:90vw;box-shadow:0 24px 60px rgba(30,33,60,.18)">
     <span class="woordmerk" style="font-size:32px">fel<svg viewBox="0 0 11 30" aria-hidden="true" style="height:.95em;width:auto;margin:0 1px;fill:#0A0AA0"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
     <h3 style="margin:10px 0 6px;font-size:16px">Leadgenerator Felison</h3>
+    <div id="loginDemoBadge" hidden style="background:var(--lavbg);color:var(--lavd);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin:0 0 10px">🎬 Dit is de demo-omgeving — log in met code: demo</div>
     <p style="color:var(--dim);font-size:13px;margin:0 0 14px">Voer de toegangscode in om het leaddashboard te openen.</p>
     <input type="text" id="loginCode" placeholder="Toegangscode" autocomplete="off" autocapitalize="off" spellcheck="false"
            style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:8px;font-size:15px">
@@ -318,6 +319,7 @@ function huidigeCode() {
 function toonLogin(fout) {
   const ov = $('#loginOverlay');
   ov.style.display = 'flex';
+  if (window.location.hostname.includes('-demo')) $('#loginDemoBadge').hidden = false;
   $('#loginFout').textContent = fout || '';
   $('#loginCode').focus();
 }
