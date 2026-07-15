@@ -30,19 +30,32 @@ CREATE TABLE IF NOT EXISTS leads(
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
     presentje_datum TEXT, presentje_type TEXT,
+    relatie_match TEXT, relatie_naam TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
     aangemaakt TEXT DEFAULT (datetime('now'))
 );;
 CREATE TABLE IF NOT EXISTS presentje_types(naam TEXT PRIMARY KEY);;
+CREATE TABLE IF NOT EXISTS instellingen(sleutel TEXT PRIMARY KEY, waarde TEXT);;
+CREATE TABLE IF NOT EXISTS relaties(
+    id INTEGER PRIMARY KEY,
+    naam TEXT NOT NULL,
+    naam_norm TEXT UNIQUE,
+    ts TEXT DEFAULT (datetime('now'))
+);;
+CREATE TABLE IF NOT EXISTS feedback(
+    id INTEGER PRIMARY KEY,
+    naam TEXT, tekst TEXT, scherm TEXT,
+    ts TEXT DEFAULT (datetime('now'))
+);;
 CREATE TABLE IF NOT EXISTS status_log(
     id INTEGER PRIMARY KEY,
     lead_id INTEGER REFERENCES leads(id),
     status TEXT, am TEXT, notitie TEXT,
     ts TEXT DEFAULT (datetime('now'))
 );;
-CREATE TABLE IF NOT EXISTS ams(naam TEXT PRIMARY KEY, kleur TEXT);;
+CREATE TABLE IF NOT EXISTS ams(naam TEXT PRIMARY KEY, kleur TEXT, email TEXT);;
 CREATE TABLE IF NOT EXISTS imports(
     id INTEGER PRIMARY KEY,
     ts TEXT DEFAULT (datetime('now')),
@@ -80,19 +93,32 @@ CREATE TABLE IF NOT EXISTS leads(
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
     presentje_datum TEXT, presentje_type TEXT,
+    relatie_match TEXT, relatie_naam TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
     aangemaakt TIMESTAMP DEFAULT now()
 );;
 CREATE TABLE IF NOT EXISTS presentje_types(naam TEXT PRIMARY KEY);;
+CREATE TABLE IF NOT EXISTS instellingen(sleutel TEXT PRIMARY KEY, waarde TEXT);;
+CREATE TABLE IF NOT EXISTS relaties(
+    id SERIAL PRIMARY KEY,
+    naam TEXT NOT NULL,
+    naam_norm TEXT UNIQUE,
+    ts TIMESTAMP DEFAULT now()
+);;
+CREATE TABLE IF NOT EXISTS feedback(
+    id SERIAL PRIMARY KEY,
+    naam TEXT, tekst TEXT, scherm TEXT,
+    ts TIMESTAMP DEFAULT now()
+);;
 CREATE TABLE IF NOT EXISTS status_log(
     id SERIAL PRIMARY KEY,
     lead_id INTEGER REFERENCES leads(id),
     status TEXT, am TEXT, notitie TEXT,
     ts TIMESTAMP DEFAULT now()
 );;
-CREATE TABLE IF NOT EXISTS ams(naam TEXT PRIMARY KEY, kleur TEXT);;
+CREATE TABLE IF NOT EXISTS ams(naam TEXT PRIMARY KEY, kleur TEXT, email TEXT);;
 CREATE TABLE IF NOT EXISTS imports(
     id SERIAL PRIMARY KEY,
     ts TIMESTAMP DEFAULT now(),
@@ -165,13 +191,14 @@ class DB:
         cur.execute(sql, tuple(params))
         return cur.lastrowid
 
-    def upsert_am(self, naam, kleur):
+    def upsert_am(self, naam, kleur, email=None):
         if self.pg:
             self.execute(
-                "INSERT INTO ams(naam,kleur) VALUES(?,?) ON CONFLICT(naam) DO UPDATE SET kleur=EXCLUDED.kleur",
-                (naam, kleur))
+                "INSERT INTO ams(naam,kleur,email) VALUES(?,?,?) "
+                "ON CONFLICT(naam) DO UPDATE SET kleur=EXCLUDED.kleur, email=EXCLUDED.email",
+                (naam, kleur, email))
         else:
-            self.execute("INSERT OR REPLACE INTO ams(naam,kleur) VALUES(?,?)", (naam, kleur))
+            self.execute("INSERT OR REPLACE INTO ams(naam,kleur,email) VALUES(?,?,?)", (naam, kleur, email))
 
     def commit(self):
         self.con.commit()
@@ -191,6 +218,9 @@ MIGRATIES = [
     "ALTER TABLE leads ADD COLUMN vervolg_actie TEXT",
     "ALTER TABLE leads ADD COLUMN presentje_datum TEXT",
     "ALTER TABLE leads ADD COLUMN presentje_type TEXT",
+    "ALTER TABLE leads ADD COLUMN relatie_match TEXT",
+    "ALTER TABLE leads ADD COLUMN relatie_naam TEXT",
+    "ALTER TABLE ams ADD COLUMN email TEXT",
 ]
 
 

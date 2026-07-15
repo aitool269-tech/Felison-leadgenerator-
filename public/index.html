@@ -81,6 +81,7 @@
   .st-Opnieuw-binnen{background:#F6E0B8;color:#633806}
   .st-Geclaimd,.st-Benaderd,.st-In-gesprek{background:#E1F4EA;color:#0F6E56}
   .st-Aanstelling{background:#0F6E56;color:#fff}
+  .st-Bestaande-relatie{background:var(--grijsbg);color:var(--grijs)}
   .st-Afgewezen{background:#FCEBEB;color:#A32D2D}
   .st-Geen-interesse{background:#FCEBEB;color:#791F1F}
   .mijnrij{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #F2F3FA}
@@ -160,6 +161,9 @@
       Rapport</button>
   </nav>
   <nav class="onder">
+    <button id="feedbackKnop" title="Stuur feedback over de app">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-8 8H4l2.3-2.8A8 8 0 1 1 21 11.5z"/><path d="M9 10h6"/><path d="M9 13.5h4"/></svg>
+      Feedback</button>
     <button data-tab="instellingen" title="Instellingen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a7.9 7.9 0 0 0 .1-6l-2.2-.6a6 6 0 0 0-1.7-1.7L15 4.5a7.9 7.9 0 0 0-6 0l-.6 2.2a6 6 0 0 0-1.7 1.7L4.5 9a7.9 7.9 0 0 0 0 6l2.2.6a6 6 0 0 0 1.7 1.7l.6 2.2a7.9 7.9 0 0 0 6 0l.6-2.2a6 6 0 0 0 1.7-1.7z"/></svg>
       Instellingen</button>
@@ -217,12 +221,41 @@
   <div class="paneel" style="margin-top:16px">
     <h3>Accountmanagers</h3>
     <p>Voeg AM's toe; de kleur wordt gebruikt op de kaart zodat het werkgebied per AM zichtbaar wordt.</p>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input type="text" id="amNaam" placeholder="Naam AM">
+      <input type="text" id="amEmail" placeholder="e-mail (voor de ochtendmail)" style="min-width:210px">
       <input type="color" id="amKleur" value="#1d4ed8">
       <button class="knop" id="amToevoegen">Toevoegen</button>
     </div>
+    <p style="font-size:12.5px;color:var(--dim);margin:8px 0 0">Bestaande AM aanpassen? Voeg dezelfde naam opnieuw toe met het juiste e-mailadres/kleur.</p>
     <div id="amLijst" style="margin-top:14px"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>E-mailnotificaties</h3>
+    <p>AM's met een e-mailadres krijgen elke werkdag rond 9:00 een overzichtsmail met hun acties. Marketing krijgt direct bericht bij elke geclaimde lead (voor het presentje).</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>E-mail marketing (Nicky)</label><input type="text" id="instMarketing" placeholder="nicky@…" style="width:100%"></div>
+      <div><label>E-mail feedback-ontvanger</label><input type="text" id="instFeedback" placeholder="patrick@…" style="width:100%"></div>
+    </div>
+    <button class="knop" id="instOpslaan" style="margin-top:12px">Opslaan</button>
+    <span id="instStatus" style="font-size:12.5px;color:var(--dim);margin-left:10px"></span>
+    <div id="mailWaarschuwing" hidden style="margin-top:10px;background:var(--amberbg);color:var(--amber);border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:600">⚠ Mailverzending staat nog uit: er is geen RESEND_API_KEY geconfigureerd op de server.</div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Bestaande relaties</h3>
+    <p>Upload een lijst met bedrijfsnamen van bestaande relaties (.xlsx of .csv, kolom "naam" of de eerste kolom). Nieuwe én bestaande leads die hierop matchen krijgen een ⚠-markering; een accountmanager bevestigt of verwerpt de match in het leaddetail.</p>
+    <div class="dropzone" id="dzRelaties">Relatielijst (.xlsx of .csv)</div>
+    <input type="file" id="fileRelaties" accept=".xlsx,.csv" hidden>
+    <button class="knop" id="relatiesImportKnop" disabled>Upload relatielijst (vervangt de huidige)</button>
+    <div class="melding" id="relatiesMelding"></div>
+    <div id="relatiesStatus" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Ontvangen feedback</h3>
+    <div id="feedbackLijst" style="font-size:13px;color:var(--dim)">…</div>
   </div>
 
   <div class="paneel" style="margin-top:16px">
@@ -307,6 +340,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
   if (b.dataset.tab === 'mijn') tekenMijn();
   if (b.dataset.tab === 'rapport') laadRapport();
+  if (b.dataset.tab === 'instellingen') laadInstellingen();
 });
 const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
 
@@ -368,6 +402,7 @@ async function laadAlles() {
     META = meta;
     STATUSSEN = meta.statussen;
     if (!meta.serper) $('#verrijkKnop').disabled = true;
+    $('#mailWaarschuwing').hidden = !!meta.mail || meta.demo;
     if (meta.demo) {
       const w = document.createElement('div');
       w.style.cssText = 'background:var(--lavbg);color:var(--lavd);padding:12px 18px;font-size:13px;font-weight:600;border-radius:14px;margin-bottom:14px';
@@ -408,7 +443,7 @@ function tekenTabel() {
   $('#leadRijen').innerHTML = gefilterd().map(l => `
     <tr>
       <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
-      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}<br>
+      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber);padding:2px 8px" title="Mogelijk bestaande relatie: '${l.relatie_naam}' — controleer via het leaddetail">⚠ relatie?</span>`:''}<br>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
@@ -492,6 +527,15 @@ window.openLead = async id => {
       ${l.presentje_datum?`<br>🎁 <b>${l.presentje_type}</b> verstuurd op ${fmtDatum(l.presentje_datum)}`:''}
       <br>Binnengekomen in AFM-bestanden: <b>${historie.length}×</b> (${historie.map(h=>fmtDatum(h.ts)).join(' · ')})
     </div>
+    ${l.relatie_match==='mogelijk'?`
+    <div style="background:var(--amberbg);border-radius:12px;padding:12px 14px;margin-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ Mogelijk bestaande relatie</div>
+      <div style="font-size:12.5px;color:var(--amber);margin:3px 0 10px">Dit kantoor lijkt op "<b>${l.relatie_naam}</b>" uit de relatielijst. Controleer of dit dezelfde relatie is.</div>
+      <div style="display:flex;gap:8px">
+        <button class="knop" id="dRelatieJa" style="background:var(--grijs);border-color:var(--grijs)">Ja, bestaande relatie</button>
+        <button class="knop secundair" id="dRelatieNee">Nee, geen match</button>
+      </div>
+    </div>`:''}
     <label>Accountmanager</label>
     <div style="display:flex;gap:8px">
       <select id="dAm"><option value="">— kies AM —</option>${amOpties}</select>
@@ -535,6 +579,18 @@ window.openLead = async id => {
       <button class="knop" id="dOpslaan">Opslaan</button>
     </div>
     <div class="tijdlijn">${tekenTijdlijn(log)}</div>`;
+  const jsonOpties = b => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  if ($('#dRelatieJa')) {
+    $('#dRelatieJa').onclick = async () => {
+      if (!confirm(`Bevestigen dat "${l.naam}" een bestaande relatie is? De lead wordt dan afgesloten met status "Bestaande relatie".`)) return;
+      await api(`/api/leads/${id}/relatiecheck`, jsonOpties({uitkomst:'bevestigd', am:localStorage.mijnAm||null}));
+      leadDialog.close(); laadAlles();
+    };
+    $('#dRelatieNee').onclick = async () => {
+      await api(`/api/leads/${id}/relatiecheck`, jsonOpties({uitkomst:'geen', am:localStorage.mijnAm||null}));
+      leadDialog.close(); laadAlles();
+    };
+  }
   $('#dClaim').onclick = async () => {
     const am = $('#dAm').value;
     if (!am) return alert('Kies eerst een AM (tab Team om toe te voegen).');
@@ -614,7 +670,10 @@ function tekenMijn() {
   const vandaag = new Date().toISOString().slice(0,10);
   const mijn = LEADS.filter(l => l.am === am);
   const open = l => LOPEND.includes(l.status) || l.status === 'Opnieuw binnen';
+  const checks = LEADS.filter(l => l.relatie_match === 'mogelijk' && (l.am === am || !l.am));
   const groepen = [
+    ['Te controleren: mogelijke bestaande relatie', 'rood', checks,
+     l => `lijkt op "${l.relatie_naam}" uit de relatielijst — bevestig of verwerp in het leaddetail`],
     ['Achterstallig', 'rood', mijn.filter(l => open(l) && l.vervolg_datum && l.vervolg_datum < vandaag),
      l => `${l.vervolg_actie||'vervolgactie'} — had gemoeten op ${fmtDatum(l.vervolg_datum)}`],
     ['Vandaag', '', mijn.filter(l => open(l) && l.vervolg_datum === vandaag),
@@ -651,6 +710,8 @@ function berekenMeldingen() {
     if (l.status === 'Opnieuw binnen')
       meldingen.push({l, tekst: 'Opnieuw binnengekomen in het AFM-bestand', urgent: true});
   }
+  for (const l of LEADS.filter(l => l.relatie_match === 'mogelijk' && (l.am === am || !l.am)))
+    meldingen.push({l, tekst: `Mogelijk bestaande relatie ("${l.relatie_naam}") — controleer`, urgent: true});
   return meldingen.sort((a,b) => b.urgent - a.urgent);
 }
 function tekenMeldingen() {
@@ -698,7 +759,7 @@ $('#exportKnop').onclick = async () => {
 };
 
 // ---- rapport ----
-const STATUS_KLEUR = {'Nieuw':'#EF9F27','Opnieuw binnen':'#BA7517','Geclaimd':'#97C459',
+const STATUS_KLEUR = {'Nieuw':'#EF9F27','Opnieuw binnen':'#BA7517','Geclaimd':'#97C459','Bestaande relatie':'#888780',
   'Benaderd':'#639922','In gesprek':'#1D9E75','Aanstelling':'#0B9455','Afgewezen':'#E24B4A','Geen interesse':'#A32D2D'};
 
 function donut(data, titel) {
@@ -844,6 +905,8 @@ $('#importKnop').onclick = async () => {
       m.textContent += ` Opnieuw binnengekomen: ${r.opnieuw_binnengekomen.slice(0,5).join(', ')}${r.opnieuw_binnengekomen.length>5?` en ${r.dubbel_overgeslagen-5} andere`:''} — zie de ×-markering in de leadlijst.`;
     if (r.heropend)
       m.textContent += ` ${r.heropend} eerder afgesloten lead(s) automatisch heropend met status "Opnieuw binnen".`;
+    if (r.mogelijke_relaties)
+      m.textContent += ` ${r.mogelijke_relaties} lead(s) matchen mogelijk met een bestaande relatie — zie de ⚠-markering.`;
     laadAlles(); laadImports();
     if (r.nieuw > 0 && META.serper) { m.textContent += ' Websites worden nu automatisch opgezocht en gescand…'; verrijkAlles(); }
   } catch(e) { m.textContent = 'Fout: ' + e.message; }
@@ -860,7 +923,7 @@ async function laadImports() {
 function tekenTeam() {
   $('#amLijst').innerHTML = AMS.map(a =>
     `<div style="padding:6px 0"><span class="stip" style="background:${a.kleur}"></span>${a.naam}
-     <small style="color:var(--dim)">· ${LEADS.filter(l=>l.am===a.naam).length} leads,
+     <small style="color:var(--dim)">· ${a.email || '⚠ geen e-mail (krijgt geen ochtendmail)'} · ${LEADS.filter(l=>l.am===a.naam).length} leads,
      ${LEADS.filter(l=>l.am===a.naam&&l.status==='Aanstelling').length} aanstellingen</small>
      <a href="#" style="color:#b91c1c;font-size:12px;margin-left:8px" onclick="verwijderAm('${a.naam.replace(/'/g,"\\'")}');return false">verwijderen</a></div>`).join('')
     || '<i style="color:var(--dim)">Nog geen AM\'s toegevoegd.</i>';
@@ -953,8 +1016,69 @@ $('#amToevoegen').onclick = async () => {
   const naam = $('#amNaam').value.trim();
   if (!naam) return;
   await api('/api/ams', {method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({naam, kleur:$('#amKleur').value})});
-  $('#amNaam').value=''; laadAlles();
+    body:JSON.stringify({naam, kleur:$('#amKleur').value, email:$('#amEmail').value.trim()})});
+  $('#amNaam').value=''; $('#amEmail').value=''; laadAlles();
+};
+
+// ---- e-mailinstellingen, relatielijst en feedback ----
+async function laadInstellingen() {
+  try {
+    const [inst, rel] = await Promise.all([api('/api/instellingen'), api('/api/relaties/status')]);
+    $('#instMarketing').value = inst.marketing_email || '';
+    $('#instFeedback').value = inst.feedback_email || '';
+    $('#relatiesStatus').textContent = rel.relaties
+      ? `${rel.relaties} relaties in de lijst · ${rel.te_controleren} lead(s) wachten op controle`
+      : 'Nog geen relatielijst geüpload.';
+    const fb = await api('/api/feedback');
+    $('#feedbackLijst').innerHTML = fb.length
+      ? fb.map(f=>`<div style="padding:7px 0;border-bottom:1px solid #F2F4F7"><b style="color:var(--tekst)">${f.naam}</b>
+          <span style="color:var(--dim)">· ${String(f.ts).slice(0,16).replace('T',' ')} · ${f.scherm||''}</span><br>${f.tekst}</div>`).join('')
+      : 'Nog geen feedback ontvangen.';
+  } catch(e) {}
+}
+$('#instOpslaan').onclick = async () => {
+  await api('/api/instellingen', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({marketing_email:$('#instMarketing').value.trim(), feedback_email:$('#instFeedback').value.trim()})});
+  $('#instStatus').textContent = 'Opgeslagen ✓';
+  setTimeout(()=>$('#instStatus').textContent='', 2500);
+};
+
+let fRelaties = null;
+koppelZone('#dzRelaties', '#fileRelaties', f=>{fRelaties=f; $('#relatiesImportKnop').disabled=false;});
+$('#relatiesImportKnop').onclick = async () => {
+  if (!fRelaties) return;
+  const fd = new FormData(); fd.append('bestand', fRelaties);
+  const m = $('#relatiesMelding'); m.style.display='block'; m.textContent='Bezig…';
+  try {
+    const r = await api('/api/relaties/import', {method:'POST', body:fd});
+    m.textContent = `Klaar: ${r.relaties} relaties ingelezen; ${r.mogelijke_matches} lead(s) gemarkeerd voor controle.`;
+    laadAlles(); laadInstellingen();
+  } catch(e) { m.textContent = 'Fout: ' + e.message; }
+};
+
+$('#feedbackKnop').onclick = () => {
+  const actief = document.querySelector('nav button.actief')?.dataset.tab || '';
+  $('#leadDialog').innerHTML = `
+    <h3>Feedback op de app</h3>
+    <p style="font-size:13px;color:var(--dim);margin-top:0">Mis je iets, werkt er iets niet lekker, of heb je een idee? Alles is welkom — dit gaat rechtstreeks naar Patrick.</p>
+    <label>Je naam</label>
+    <input type="text" id="fbNaam" value="${localStorage.mijnAm||''}" placeholder="naam" style="width:100%">
+    <label>Je feedback</label>
+    <textarea id="fbTekst" rows="4" placeholder="beschrijf het zo concreet mogelijk…"></textarea>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="knop secundair" onclick="leadDialog.close()">Annuleren</button>
+      <button class="knop" id="fbVerstuur">Verstuur</button>
+    </div>`;
+  $('#fbVerstuur').onclick = async () => {
+    const tekst = $('#fbTekst').value.trim();
+    if (!tekst) return;
+    $('#fbVerstuur').disabled = true;
+    await api('/api/feedback', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({naam:$('#fbNaam').value.trim(), tekst, scherm:actief})});
+    leadDialog.innerHTML = `<h3>Bedankt! 🙌</h3><p style="font-size:13.5px">Je feedback is verstuurd en opgeslagen.</p>
+      <div style="text-align:right"><button class="knop" onclick="leadDialog.close()">Sluiten</button></div>`;
+  };
+  leadDialog.showModal();
 };
 
 $('#scoreUitlegPaneel').innerHTML = SCORE_UITLEG;

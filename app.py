@@ -30,10 +30,14 @@ if _envfile.exists():
 
 from database import DB, init_db, PERSISTENT  # noqa: E402
 
-STATUSSEN = ["Nieuw", "Opnieuw binnen", "Geclaimd", "Benaderd", "In gesprek", "Aanstelling", "Afgewezen", "Geen interesse"]
+STATUSSEN = ["Nieuw", "Opnieuw binnen", "Geclaimd", "Benaderd", "In gesprek", "Aanstelling",
+             "Bestaande relatie", "Afgewezen", "Geen interesse"]
 LOPEND = ("Geclaimd", "Benaderd", "In gesprek")
 ACCESS_CODE = os.environ.get("APP_ACCESS_CODE")
 SERPER_KEY = os.environ.get("SERPER_API_KEY")
+CRON_SECRET = os.environ.get("CRON_SECRET")
+
+from mail import stuur_mail, mail_actief  # noqa: E402
 
 DEMO_MODE = bool(os.environ.get("DEMO_MODE"))
 
@@ -47,6 +51,10 @@ if DEMO_MODE:
 
 @app.middleware("http")
 async def toegangscode_gate(request: Request, call_next):
+    # De cron-route heeft zijn eigen beveiliging (CRON_SECRET) — Vercel Cron
+    # kent de teamtoegangscode niet.
+    if request.url.path.startswith("/api/cron/"):
+        return await call_next(request)
     if ACCESS_CODE and request.url.path.startswith("/api"):
         # Vergelijking is bewust hoofdletter-ongevoelig: telefoons kapitaliseren
         # automatisch en de code wordt mondeling/via appjes doorgegeven.
@@ -61,6 +69,29 @@ async def toegangscode_gate(request: Request, call_next):
 def norm_naam(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def lees_instelling(con, sleutel):
+    r = con.execute("SELECT waarde FROM instellingen WHERE sleutel=?", (sleutel,)).fetchone()
+    return (r["waarde"] or "").strip() if r and r["waarde"] else None
+
+
+def match_relaties(con):
+    """Markeert nog niet gecheckte leads die op naam matchen met een bestaande relatie.
+
+    Geeft het aantal nieuwe matches terug. Leads waarvan de check al is afgerond
+    ('geen' of 'bevestigd') worden nooit opnieuw gemarkeerd.
+    """
+    relaties = {r["naam_norm"]: r["naam"] for r in con.execute("SELECT naam, naam_norm FROM relaties")}
+    if not relaties:
+        return 0
+    nieuw = 0
+    for l in list(con.execute("SELECT id, naam FROM leads WHERE relatie_match IS NULL")):
+        rel = relaties.get(norm_naam(l["naam"]))
+        if rel:
+            con.execute("UPDATE leads SET relatie_match='mogelijk', relatie_naam=? WHERE id=?", (rel, l["id"]))
+            nieuw += 1
+    return nieuw
 
 
 def clean_plaats(p):
@@ -238,10 +269,11 @@ async def importeer(xlsx: UploadFile = File(...), register_csv: UploadFile = Fil
 
     con.execute("UPDATE imports SET nieuw=?, dubbel=?, gematcht=? WHERE id=?",
                 (nieuw, dubbel, gematcht, import_id))
+    relatie_matches = match_relaties(con)
     con.commit(); con.close()
     return {"nieuw": nieuw, "dubbel_overgeslagen": dubbel, "gematcht_met_register": gematcht,
             "totaal_in_xlsx": len(leads), "opnieuw_binnengekomen": opnieuw_binnen[:15],
-            "heropend": heropend}
+            "heropend": heropend, "mogelijke_relaties": relatie_matches}
 
 
 @app.post("/api/onderhoud/plaatsnamen")
@@ -290,12 +322,31 @@ def claim(lead_id: int, body: ClaimBody):
     if lead["am"] and lead["am"] != body.am:
         con.close()
         raise HTTPException(409, f"Al geclaimd door {lead['am']}")
+    eerste_claim = lead["am"] is None
     con.execute("UPDATE leads SET am=?, status=CASE WHEN status='Nieuw' THEN 'Geclaimd' ELSE status END WHERE id=?",
                 (body.am, lead_id))
     con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                 (lead_id, "Geclaimd", body.am, None))
+    marketing = lees_instelling(con, "marketing_email")
     con.commit(); con.close()
-    return {"ok": True}
+
+    mail_resultaat = None
+    if eerste_claim:
+        # Marketing (Nicky) direct informeren: haar vervolgstap is het presentje.
+        # Een mailfout mag de claim nooit blokkeren.
+        try:
+            adresregel = ", ".join(x for x in [lead["adres"], lead["postcode"], lead["plaats"]] if x) or "adres onbekend"
+            mail_resultaat = stuur_mail(
+                marketing,
+                f"Nieuwe lead geclaimd: {lead['naam']}",
+                "Nieuwe lead geclaimd — presentje versturen",
+                [f"<b>{lead['naam']}</b> ({adresregel}) is zojuist geclaimd door <b>{body.am}</b>.",
+                 f"Contactpersoon: {lead['contactpersoon'] or 'onbekend'} · {lead['telefoon'] or 'geen telefoon'} · {lead['email'] or 'geen e-mail'}",
+                 "Registreer het presentje in het leaddetail van de app, of gebruik de werklijst-export onder Instellingen."],
+                "Open het leaddetail")
+        except Exception:
+            pass
+    return {"ok": True, "mail": mail_resultaat}
 
 
 @app.post("/api/leads/{lead_id}/vrijgeven")
@@ -902,6 +953,7 @@ def get_log(lead_id: int):
 class AmBody(BaseModel):
     naam: str
     kleur: str = "#2563eb"
+    email: str = None
 
 
 @app.get("/api/ams")
@@ -915,7 +967,7 @@ def get_ams():
 @app.post("/api/ams")
 def add_am(body: AmBody):
     con = DB()
-    con.upsert_am(body.naam.strip(), body.kleur)
+    con.upsert_am(body.naam.strip(), body.kleur, (body.email or "").strip() or None)
     con.commit(); con.close()
     return {"ok": True}
 
@@ -928,6 +980,198 @@ def del_am(naam: str):
                 (naam,))
     con.commit(); con.close()
     return {"ok": True}
+
+
+# ---------- instellingen, relaties, feedback, digest ----------
+
+class InstellingenBody(BaseModel):
+    marketing_email: str = None
+    feedback_email: str = None
+
+
+@app.get("/api/instellingen")
+def get_instellingen():
+    con = DB()
+    out = {r["sleutel"]: r["waarde"] for r in con.execute("SELECT * FROM instellingen")}
+    con.close()
+    return out
+
+
+@app.post("/api/instellingen")
+def zet_instellingen(body: InstellingenBody):
+    con = DB()
+    for sleutel in ("marketing_email", "feedback_email"):
+        waarde = getattr(body, sleutel)
+        if waarde is not None:
+            if con.pg:
+                con.execute("INSERT INTO instellingen(sleutel, waarde) VALUES(?,?) "
+                            "ON CONFLICT(sleutel) DO UPDATE SET waarde=EXCLUDED.waarde",
+                            (sleutel, waarde.strip()))
+            else:
+                con.execute("INSERT OR REPLACE INTO instellingen(sleutel, waarde) VALUES(?,?)",
+                            (sleutel, waarde.strip()))
+    con.commit(); con.close()
+    return {"ok": True}
+
+
+@app.post("/api/relaties/import")
+async def relaties_import(bestand: UploadFile = File(...)):
+    """Vervangt de relatielijst door de aangeleverde xlsx/csv (kolom 'naam' of de eerste kolom)."""
+    raw = await bestand.read()
+    namen = []
+    if bestand.filename.lower().endswith((".xlsx", ".xlsm")):
+        wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True)
+        rijen = list(wb.worksheets[0].iter_rows(values_only=True))
+    else:
+        try:
+            tekst = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            tekst = raw.decode("cp1252", errors="replace")
+        proef = tekst.splitlines()[0] if tekst.splitlines() else ""
+        scheiding = ";" if proef.count(";") >= proef.count(",") else ","
+        rijen = list(csv.reader(io.StringIO(tekst), delimiter=scheiding))
+    if not rijen:
+        raise HTTPException(400, "Leeg bestand")
+    kolom = 0
+    kop = [str(c or "").strip().lower() for c in rijen[0]]
+    start = 0
+    for i, k in enumerate(kop):
+        if k in ("naam", "bedrijfsnaam", "relatie", "kantoor", "statutaire naam"):
+            kolom, start = i, 1
+            break
+    else:
+        # geen herkenbare kop: als de eerste cel geen bedrijfsnaam lijkt (bv. 'naam'), toch overslaan
+        if kop and kop[0] in ("naam", "name"):
+            start = 1
+    con = DB()
+    con.execute("DELETE FROM relaties")
+    gezien, aantal = set(), 0
+    for r in rijen[start:]:
+        if len(r) <= kolom or not r[kolom]:
+            continue
+        naam = str(r[kolom]).strip()
+        nn = norm_naam(naam)
+        if not nn or nn in gezien:
+            continue
+        gezien.add(nn)
+        con.execute("INSERT INTO relaties(naam, naam_norm) VALUES(?,?)", (naam, nn))
+        aantal += 1
+    # Eerder afgeronde checks blijven staan; alleen open markeringen opnieuw bepalen.
+    con.execute("UPDATE leads SET relatie_match=NULL, relatie_naam=NULL WHERE relatie_match='mogelijk'")
+    matches = match_relaties(con)
+    con.commit(); con.close()
+    return {"relaties": aantal, "mogelijke_matches": matches}
+
+
+@app.get("/api/relaties/status")
+def relaties_status():
+    con = DB()
+    aantal = con.execute("SELECT COUNT(*) n FROM relaties").fetchone()["n"]
+    open_checks = con.execute("SELECT COUNT(*) n FROM leads WHERE relatie_match='mogelijk'").fetchone()["n"]
+    con.close()
+    return {"relaties": aantal, "te_controleren": open_checks}
+
+
+class RelatiecheckBody(BaseModel):
+    uitkomst: str  # 'bevestigd' of 'geen'
+    am: str = None
+
+
+@app.post("/api/leads/{lead_id}/relatiecheck")
+def relatiecheck(lead_id: int, body: RelatiecheckBody):
+    if body.uitkomst not in ("bevestigd", "geen"):
+        raise HTTPException(400, "uitkomst moet 'bevestigd' of 'geen' zijn")
+    con = DB()
+    lead = con.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
+    if not lead:
+        con.close()
+        raise HTTPException(404, "Lead niet gevonden")
+    con.execute("UPDATE leads SET relatie_match=? WHERE id=?", (body.uitkomst, lead_id))
+    if body.uitkomst == "bevestigd":
+        con.execute("UPDATE leads SET status='Bestaande relatie' WHERE id=?", (lead_id,))
+        con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
+                    (lead_id, "Bestaande relatie", body.am,
+                     f"Bevestigd als bestaande relatie (match: {lead['relatie_naam']})"))
+    else:
+        con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
+                    (lead_id, lead["status"], body.am,
+                     f"Relatiecheck: geen match (lijst noemde '{lead['relatie_naam']}')"))
+    con.commit(); con.close()
+    return {"ok": True}
+
+
+class FeedbackBody(BaseModel):
+    naam: str = None
+    tekst: str
+    scherm: str = None
+
+
+@app.post("/api/feedback")
+def geef_feedback(body: FeedbackBody):
+    if not body.tekst.strip():
+        raise HTTPException(400, "Lege feedback")
+    con = DB()
+    con.execute("INSERT INTO feedback(naam, tekst, scherm) VALUES(?,?,?)",
+                (body.naam or "anoniem", body.tekst.strip(), body.scherm))
+    ontvanger = lees_instelling(con, "feedback_email")
+    con.commit(); con.close()
+    mail_resultaat = stuur_mail(
+        ontvanger,
+        f"App-feedback van {body.naam or 'anoniem'}",
+        "Nieuwe feedback op de leadgenerator",
+        [f"<b>Van:</b> {body.naam or 'anoniem'} · <b>scherm:</b> {body.scherm or 'onbekend'}",
+         f"<i>“{body.tekst.strip()}”</i>"],
+        "Open de app")
+    return {"ok": True, "mail": mail_resultaat}
+
+
+@app.get("/api/feedback")
+def lijst_feedback():
+    con = DB()
+    out = list(con.execute("SELECT * FROM feedback ORDER BY id DESC LIMIT 100"))
+    con.close()
+    return out
+
+
+@app.get("/api/cron/digest")
+def cron_digest(request: Request, test: int = 0):
+    """Dagelijkse ochtendmail per AM. Aangeroepen door Vercel Cron (Bearer CRON_SECRET)."""
+    auth = request.headers.get("authorization", "")
+    if not CRON_SECRET or auth != f"Bearer {CRON_SECRET}":
+        raise HTTPException(401, "Ongeldige cron-authenticatie")
+    if not test and date.today().weekday() >= 5:  # za/zo overslaan
+        return {"overgeslagen": "weekend"}
+    vandaag = date.today().isoformat()
+    con = DB()
+    ams = list(con.execute("SELECT * FROM ams WHERE email IS NOT NULL AND email != ''"))
+    resultaat = []
+    for am in ams:
+        leads = list(con.execute("SELECT * FROM leads WHERE am=?", (am["naam"],)))
+        open_lead = lambda l: l["status"] in LOPEND or l["status"] == "Opnieuw binnen"
+        achterstallig = [l for l in leads if open_lead(l) and l["vervolg_datum"] and l["vervolg_datum"] < vandaag]
+        vandaag_gepland = [l for l in leads if open_lead(l) and l["vervolg_datum"] == vandaag]
+        opnieuw = [l for l in leads if l["status"] == "Opnieuw binnen"]
+        checks = [l for l in leads if l["relatie_match"] == "mogelijk"]
+        if not (achterstallig or vandaag_gepland or opnieuw or checks):
+            resultaat.append({"am": am["naam"], "verzonden": False, "reden": "niets te doen"})
+            continue
+        regels = []
+        if achterstallig:
+            regels.append("<b>Achterstallig:</b> " + " · ".join(
+                f"{l['naam']} ({l['vervolg_actie'] or 'vervolgactie'}, {l['vervolg_datum']})" for l in achterstallig))
+        if vandaag_gepland:
+            regels.append("<b>Vandaag gepland:</b> " + " · ".join(
+                f"{l['naam']} ({l['vervolg_actie'] or 'vervolgactie'})" for l in vandaag_gepland))
+        if opnieuw:
+            regels.append("<b>Opnieuw binnengekomen:</b> " + " · ".join(l["naam"] for l in opnieuw))
+        if checks:
+            regels.append("<b>Relatiecheck nodig:</b> " + " · ".join(l["naam"] for l in checks))
+        totaal = len(achterstallig) + len(vandaag_gepland) + len(opnieuw) + len(checks)
+        r = stuur_mail(am["email"], f"Leadgenerator: {totaal} actie(s) voor vandaag",
+                       f"Goedemorgen {am['naam']}, dit staat er voor je klaar", regels)
+        resultaat.append({"am": am["naam"], **r})
+    con.close()
+    return {"datum": vandaag, "resultaat": resultaat}
 
 
 @app.get("/api/stats")
@@ -949,7 +1193,7 @@ def stats():
 @app.get("/api/meta")
 def meta():
     return {"statussen": STATUSSEN, "persistent": PERSISTENT, "beveiligd": bool(ACCESS_CODE),
-            "serper": bool(SERPER_KEY), "demo": DEMO_MODE}
+            "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief()}
 
 
 @app.get("/")
