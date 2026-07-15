@@ -48,6 +48,18 @@ A ≥ 70, B ≥ 50, C < 50. De uitleg per lead staat als tooltip op de scorebadg
 Nieuw → Geclaimd → Benaderd → In gesprek → Aanstelling / Afgewezen / Geen interesse.
 Elke statuswissel wordt gelogd met datum, AM en notitie. AM's beheer je in tab **Team**; hun kleur bepaalt de kaartweergave zodat het feitelijke werkgebied per AM zichtbaar wordt.
 
+## E-mailnotificaties (Resend)
+
+- `mail.py` verstuurt via Resend; zonder `RESEND_API_KEY` staat mail uit (app werkt gewoon, `meta.mail` = false, Instellingen toont een waarschuwing).
+- Env vars op productie: `RESEND_API_KEY`, `MAIL_FROM` (bijv. `Leadgenerator Felison <leads@domein.nl>`), `APP_URL`, `CRON_SECRET`.
+- Dagelijkse AM-digest: Vercel Cron roept `/api/cron/digest` aan (07:00 UTC, ma-vr; auth: `Bearer CRON_SECRET`). Alleen AM's mét e-mailadres (Team-beheer) en alleen als er acties zijn.
+- Claim → directe mail naar marketing (adres in Instellingen) voor het presentje.
+- Feedbackknop (zijbalk) → opslag in database + mail naar het feedback-adres uit Instellingen.
+
+## Relatiecheck
+
+Upload onder Instellingen een lijst bedrijfsnamen van bestaande relaties (.xlsx/.csv, kolom "naam" of eerste kolom; upload vervangt de lijst). Leads die op genormaliseerde naam matchen krijgen ⚠ "relatie?"; een AM bevestigt ("Bestaande relatie", eindstatus) of verwerpt ("geen match", komt niet terug) in het leaddetail. Matching draait bij elke upload én elke AFM-import.
+
 ## Data
 
 - `leads.db` (SQLite) — alle leads, statushistorie, AM's en importlog. **Back-uppen = dit ene bestand kopiëren.**
