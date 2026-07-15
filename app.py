@@ -76,20 +76,27 @@ def lees_instelling(con, sleutel):
     return (r["waarde"] or "").strip() if r and r["waarde"] else None
 
 
+RELATIE_BRONNEN = ("Felison", "Nedasco")
+
+
 def match_relaties(con):
     """Markeert nog niet gecheckte leads die op naam matchen met een bestaande relatie.
 
-    Geeft het aantal nieuwe matches terug. Leads waarvan de check al is afgerond
+    Een kantoor kan in meerdere bronlijsten staan; de bronnen worden dan
+    samengevoegd ("Felison + Nedasco"). Leads waarvan de check al is afgerond
     ('geen' of 'bevestigd') worden nooit opnieuw gemarkeerd.
     """
-    relaties = {r["naam_norm"]: r["naam"] for r in con.execute("SELECT naam, naam_norm FROM relaties")}
+    relaties = {}
+    for r in con.execute("SELECT naam, naam_norm, bron FROM relaties"):
+        relaties.setdefault(r["naam_norm"], {"naam": r["naam"], "bronnen": []})["bronnen"].append(r["bron"] or "?")
     if not relaties:
         return 0
     nieuw = 0
     for l in list(con.execute("SELECT id, naam FROM leads WHERE relatie_match IS NULL")):
         rel = relaties.get(norm_naam(l["naam"]))
         if rel:
-            con.execute("UPDATE leads SET relatie_match='mogelijk', relatie_naam=? WHERE id=?", (rel, l["id"]))
+            con.execute("UPDATE leads SET relatie_match='mogelijk', relatie_naam=?, relatie_bron=? WHERE id=?",
+                        (rel["naam"], " + ".join(sorted(set(rel["bronnen"]))), l["id"]))
             nieuw += 1
     return nieuw
 
@@ -1015,8 +1022,10 @@ def zet_instellingen(body: InstellingenBody):
 
 
 @app.post("/api/relaties/import")
-async def relaties_import(bestand: UploadFile = File(...)):
-    """Vervangt de relatielijst door de aangeleverde xlsx/csv (kolom 'naam' of de eerste kolom)."""
+async def relaties_import(bestand: UploadFile = File(...), bron: str = "Felison"):
+    """Vervangt de relatielijst van één bron (Felison of Nedasco) door de aangeleverde xlsx/csv."""
+    if bron not in RELATIE_BRONNEN:
+        raise HTTPException(400, f"Onbekende bron; kies uit {list(RELATIE_BRONNEN)}")
     raw = await bestand.read()
     namen = []
     if bestand.filename.lower().endswith((".xlsx", ".xlsm")):
@@ -1044,7 +1053,7 @@ async def relaties_import(bestand: UploadFile = File(...)):
         if kop and kop[0] in ("naam", "name"):
             start = 1
     con = DB()
-    con.execute("DELETE FROM relaties")
+    con.execute("DELETE FROM relaties WHERE bron=?", (bron,))
     gezien, aantal = set(), 0
     for r in rijen[start:]:
         if len(r) <= kolom or not r[kolom]:
@@ -1054,22 +1063,24 @@ async def relaties_import(bestand: UploadFile = File(...)):
         if not nn or nn in gezien:
             continue
         gezien.add(nn)
-        con.execute("INSERT INTO relaties(naam, naam_norm) VALUES(?,?)", (naam, nn))
+        con.execute("INSERT INTO relaties(naam, naam_norm, bron) VALUES(?,?,?)", (naam, nn, bron))
         aantal += 1
     # Eerder afgeronde checks blijven staan; alleen open markeringen opnieuw bepalen.
-    con.execute("UPDATE leads SET relatie_match=NULL, relatie_naam=NULL WHERE relatie_match='mogelijk'")
+    con.execute("UPDATE leads SET relatie_match=NULL, relatie_naam=NULL, relatie_bron=NULL WHERE relatie_match='mogelijk'")
     matches = match_relaties(con)
     con.commit(); con.close()
-    return {"relaties": aantal, "mogelijke_matches": matches}
+    return {"bron": bron, "relaties": aantal, "mogelijke_matches": matches}
 
 
 @app.get("/api/relaties/status")
 def relaties_status():
     con = DB()
-    aantal = con.execute("SELECT COUNT(*) n FROM relaties").fetchone()["n"]
+    per_bron = {b: 0 for b in RELATIE_BRONNEN}
+    for r in con.execute("SELECT bron, COUNT(*) n FROM relaties GROUP BY bron"):
+        per_bron[r["bron"] or "?"] = r["n"]
     open_checks = con.execute("SELECT COUNT(*) n FROM leads WHERE relatie_match='mogelijk'").fetchone()["n"]
     con.close()
-    return {"relaties": aantal, "te_controleren": open_checks}
+    return {"per_bron": per_bron, "relaties": sum(per_bron.values()), "te_controleren": open_checks}
 
 
 class RelatiecheckBody(BaseModel):
@@ -1091,7 +1102,7 @@ def relatiecheck(lead_id: int, body: RelatiecheckBody):
         con.execute("UPDATE leads SET status='Bestaande relatie' WHERE id=?", (lead_id,))
         con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                     (lead_id, "Bestaande relatie", body.am,
-                     f"Bevestigd als bestaande relatie (match: {lead['relatie_naam']})"))
+                     f"Bevestigd als bestaande relatie bij {lead['relatie_bron'] or '?'} (match: {lead['relatie_naam']})"))
     else:
         con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                     (lead_id, lead["status"], body.am,

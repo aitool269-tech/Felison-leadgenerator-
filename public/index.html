@@ -245,10 +245,21 @@
 
   <div class="paneel" style="margin-top:16px">
     <h3>Bestaande relaties</h3>
-    <p>Upload een lijst met bedrijfsnamen van bestaande relaties (.xlsx of .csv, kolom "naam" of de eerste kolom). Nieuwe én bestaande leads die hierop matchen krijgen een ⚠-markering; een accountmanager bevestigt of verwerpt de match in het leaddetail.</p>
-    <div class="dropzone" id="dzRelaties">Relatielijst (.xlsx of .csv)</div>
-    <input type="file" id="fileRelaties" accept=".xlsx,.csv" hidden>
-    <button class="knop" id="relatiesImportKnop" disabled>Upload relatielijst (vervangt de huidige)</button>
+    <p>Upload per bron een lijst met bedrijfsnamen (.xlsx of .csv, kolom "naam" of de eerste kolom). Leads die matchen krijgen een ⚠-markering met bronvermelding; een accountmanager bevestigt of verwerpt de match in het leaddetail. Elke upload vervangt de lijst van die bron.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="margin-top:0">Relaties Felison</label>
+        <div class="dropzone" id="dzRelFelison" style="margin-top:4px">Felison-lijst (.xlsx/.csv)</div>
+        <input type="file" id="fileRelFelison" accept=".xlsx,.csv" hidden>
+        <button class="knop" id="uploadRelFelison" disabled style="width:100%">Upload Felison-lijst</button>
+      </div>
+      <div>
+        <label style="margin-top:0">Relaties Nedasco</label>
+        <div class="dropzone" id="dzRelNedasco" style="margin-top:4px">Nedasco-lijst (.xlsx/.csv)</div>
+        <input type="file" id="fileRelNedasco" accept=".xlsx,.csv" hidden>
+        <button class="knop" id="uploadRelNedasco" disabled style="width:100%">Upload Nedasco-lijst</button>
+      </div>
+    </div>
     <div class="melding" id="relatiesMelding"></div>
     <div id="relatiesStatus" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
   </div>
@@ -443,7 +454,7 @@ function tekenTabel() {
   $('#leadRijen').innerHTML = gefilterd().map(l => `
     <tr>
       <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
-      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber);padding:2px 8px" title="Mogelijk bestaande relatie: '${l.relatie_naam}' — controleer via het leaddetail">⚠ relatie?</span>`:''}<br>
+      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber);padding:2px 8px" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
@@ -529,8 +540,8 @@ window.openLead = async id => {
     </div>
     ${l.relatie_match==='mogelijk'?`
     <div style="background:var(--amberbg);border-radius:12px;padding:12px 14px;margin-top:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ Mogelijk bestaande relatie</div>
-      <div style="font-size:12.5px;color:var(--amber);margin:3px 0 10px">Dit kantoor lijkt op "<b>${l.relatie_naam}</b>" uit de relatielijst. Controleer of dit dezelfde relatie is.</div>
+      <div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}</div>
+      <div style="font-size:12.5px;color:var(--amber);margin:3px 0 10px">Dit kantoor lijkt op "<b>${l.relatie_naam}</b>" uit de ${l.relatie_bron||''}-relatielijst. Controleer of dit dezelfde relatie is.</div>
       <div style="display:flex;gap:8px">
         <button class="knop" id="dRelatieJa" style="background:var(--grijs);border-color:var(--grijs)">Ja, bestaande relatie</button>
         <button class="knop secundair" id="dRelatieNee">Nee, geen match</button>
@@ -673,7 +684,7 @@ function tekenMijn() {
   const checks = LEADS.filter(l => l.relatie_match === 'mogelijk' && (l.am === am || !l.am));
   const groepen = [
     ['Te controleren: mogelijke bestaande relatie', 'rood', checks,
-     l => `lijkt op "${l.relatie_naam}" uit de relatielijst — bevestig of verwerp in het leaddetail`],
+     l => `lijkt op "${l.relatie_naam}" uit de ${l.relatie_bron||'?'}-lijst — bevestig of verwerp in het leaddetail`],
     ['Achterstallig', 'rood', mijn.filter(l => open(l) && l.vervolg_datum && l.vervolg_datum < vandaag),
      l => `${l.vervolg_actie||'vervolgactie'} — had gemoeten op ${fmtDatum(l.vervolg_datum)}`],
     ['Vandaag', '', mijn.filter(l => open(l) && l.vervolg_datum === vandaag),
@@ -711,7 +722,7 @@ function berekenMeldingen() {
       meldingen.push({l, tekst: 'Opnieuw binnengekomen in het AFM-bestand', urgent: true});
   }
   for (const l of LEADS.filter(l => l.relatie_match === 'mogelijk' && (l.am === am || !l.am)))
-    meldingen.push({l, tekst: `Mogelijk bestaande relatie ("${l.relatie_naam}") — controleer`, urgent: true});
+    meldingen.push({l, tekst: `Mogelijk bestaande relatie bij ${l.relatie_bron||'?'} ("${l.relatie_naam}") — controleer`, urgent: true});
   return meldingen.sort((a,b) => b.urgent - a.urgent);
 }
 function tekenMeldingen() {
@@ -1027,8 +1038,8 @@ async function laadInstellingen() {
     $('#instMarketing').value = inst.marketing_email || '';
     $('#instFeedback').value = inst.feedback_email || '';
     $('#relatiesStatus').textContent = rel.relaties
-      ? `${rel.relaties} relaties in de lijst · ${rel.te_controleren} lead(s) wachten op controle`
-      : 'Nog geen relatielijst geüpload.';
+      ? `Felison: ${rel.per_bron.Felison} · Nedasco: ${rel.per_bron.Nedasco} · ${rel.te_controleren} lead(s) wachten op controle`
+      : 'Nog geen relatielijsten geüpload.';
     const fb = await api('/api/feedback');
     $('#feedbackLijst').innerHTML = fb.length
       ? fb.map(f=>`<div style="padding:7px 0;border-bottom:1px solid #F2F4F7"><b style="color:var(--tekst)">${f.naam}</b>
@@ -1043,18 +1054,22 @@ $('#instOpslaan').onclick = async () => {
   setTimeout(()=>$('#instStatus').textContent='', 2500);
 };
 
-let fRelaties = null;
-koppelZone('#dzRelaties', '#fileRelaties', f=>{fRelaties=f; $('#relatiesImportKnop').disabled=false;});
-$('#relatiesImportKnop').onclick = async () => {
-  if (!fRelaties) return;
-  const fd = new FormData(); fd.append('bestand', fRelaties);
-  const m = $('#relatiesMelding'); m.style.display='block'; m.textContent='Bezig…';
-  try {
-    const r = await api('/api/relaties/import', {method:'POST', body:fd});
-    m.textContent = `Klaar: ${r.relaties} relaties ingelezen; ${r.mogelijke_matches} lead(s) gemarkeerd voor controle.`;
-    laadAlles(); laadInstellingen();
-  } catch(e) { m.textContent = 'Fout: ' + e.message; }
-};
+const relatieBestanden = {};
+function koppelRelatieUpload(bron) {
+  koppelZone('#dzRel'+bron, '#fileRel'+bron, f=>{relatieBestanden[bron]=f; $('#uploadRel'+bron).disabled=false;});
+  $('#uploadRel'+bron).onclick = async () => {
+    if (!relatieBestanden[bron]) return;
+    const fd = new FormData(); fd.append('bestand', relatieBestanden[bron]);
+    const m = $('#relatiesMelding'); m.style.display='block'; m.textContent='Bezig…';
+    try {
+      const r = await api('/api/relaties/import?bron='+bron, {method:'POST', body:fd});
+      m.textContent = `Klaar: ${r.relaties} ${bron}-relaties ingelezen; ${r.mogelijke_matches} lead(s) gemarkeerd voor controle.`;
+      laadAlles(); laadInstellingen();
+    } catch(e) { m.textContent = 'Fout: ' + e.message; }
+  };
+}
+koppelRelatieUpload('Felison');
+koppelRelatieUpload('Nedasco');
 
 $('#feedbackKnop').onclick = () => {
   const actief = document.querySelector('nav button.actief')?.dataset.tab || '';

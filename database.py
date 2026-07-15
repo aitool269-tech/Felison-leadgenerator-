@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS leads(
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
     presentje_datum TEXT, presentje_type TEXT,
-    relatie_match TEXT, relatie_naam TEXT,
+    relatie_match TEXT, relatie_naam TEXT, relatie_bron TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
@@ -41,8 +41,10 @@ CREATE TABLE IF NOT EXISTS instellingen(sleutel TEXT PRIMARY KEY, waarde TEXT);;
 CREATE TABLE IF NOT EXISTS relaties(
     id INTEGER PRIMARY KEY,
     naam TEXT NOT NULL,
-    naam_norm TEXT UNIQUE,
-    ts TEXT DEFAULT (datetime('now'))
+    naam_norm TEXT,
+    bron TEXT,
+    ts TEXT DEFAULT (datetime('now')),
+    UNIQUE(naam_norm, bron)
 );;
 CREATE TABLE IF NOT EXISTS feedback(
     id INTEGER PRIMARY KEY,
@@ -93,7 +95,7 @@ CREATE TABLE IF NOT EXISTS leads(
     telefoon TEXT, email TEXT, contactpersoon TEXT,
     vervolg_datum TEXT, vervolg_actie TEXT,
     presentje_datum TEXT, presentje_type TEXT,
-    relatie_match TEXT, relatie_naam TEXT,
+    relatie_match TEXT, relatie_naam TEXT, relatie_bron TEXT,
     status TEXT DEFAULT 'Nieuw',
     am TEXT,
     import_id INTEGER,
@@ -104,8 +106,10 @@ CREATE TABLE IF NOT EXISTS instellingen(sleutel TEXT PRIMARY KEY, waarde TEXT);;
 CREATE TABLE IF NOT EXISTS relaties(
     id SERIAL PRIMARY KEY,
     naam TEXT NOT NULL,
-    naam_norm TEXT UNIQUE,
-    ts TIMESTAMP DEFAULT now()
+    naam_norm TEXT,
+    bron TEXT,
+    ts TIMESTAMP DEFAULT now(),
+    UNIQUE(naam_norm, bron)
 );;
 CREATE TABLE IF NOT EXISTS feedback(
     id SERIAL PRIMARY KEY,
@@ -220,7 +224,10 @@ MIGRATIES = [
     "ALTER TABLE leads ADD COLUMN presentje_type TEXT",
     "ALTER TABLE leads ADD COLUMN relatie_match TEXT",
     "ALTER TABLE leads ADD COLUMN relatie_naam TEXT",
+    "ALTER TABLE leads ADD COLUMN relatie_bron TEXT",
     "ALTER TABLE ams ADD COLUMN email TEXT",
+    "ALTER TABLE relaties ADD COLUMN bron TEXT",
+    "ALTER TABLE relaties DROP CONSTRAINT relaties_naam_norm_key",
 ]
 
 
