@@ -6,6 +6,7 @@ Import:  twee bestanden per maand — R0443 xlsx (nieuwe vergunningen) + registe
 """
 import csv
 import io
+import json
 import os
 import re
 import unicodedata
@@ -38,6 +39,7 @@ SERPER_KEY = os.environ.get("SERPER_API_KEY")
 CRON_SECRET = os.environ.get("CRON_SECRET")
 
 from mail import stuur_mail, mail_actief  # noqa: E402
+from backup import maak_backup, push_naar_github, backup_actief  # noqa: E402
 
 DEMO_MODE = bool(os.environ.get("DEMO_MODE"))
 
@@ -1144,6 +1146,68 @@ def lijst_feedback():
     return out
 
 
+@app.get("/api/backup/download")
+def backup_download():
+    """Handmatige volledige back-up (alle tabellen) als JSON-bestand."""
+    con = DB()
+    data = maak_backup(con)
+    con.close()
+    naam = f"leadgenerator-backup-{date.today().isoformat()}.json"
+    return Response(json.dumps(data, ensure_ascii=False, indent=1),
+                    media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{naam}"'})
+
+
+@app.get("/api/cron/backup")
+def cron_backup(request: Request):
+    """Dagelijkse volledige back-up naar de GitHub-repo (Vercel Cron)."""
+    auth = request.headers.get("authorization", "")
+    if not CRON_SECRET or auth != f"Bearer {CRON_SECRET}":
+        raise HTTPException(401, "Ongeldige cron-authenticatie")
+    con = DB()
+    data = maak_backup(con)
+    con.close()
+    return push_naar_github(data)
+
+
+# Volgorde is belangrijk: kindtabellen eerst leeg, ouders (leads) eerst terug.
+HERSTEL_VOLGORDE = ["leads", "ams", "relaties", "instellingen", "presentje_types",
+                    "imports", "lead_historie", "status_log", "contactmomenten", "feedback"]
+
+
+@app.post("/api/backup/restore")
+async def backup_restore(bestand: UploadFile = File(...), bevestiging: str = ""):
+    """Zet een back-upbestand volledig terug. Overschrijft ALLE huidige data."""
+    if bevestiging != "HERSTEL":
+        raise HTTPException(400, "Herstellen overschrijft alle data. Stuur bevestiging='HERSTEL' mee.")
+    try:
+        data = json.loads(await bestand.read())
+    except Exception:
+        raise HTTPException(400, "Geen geldig back-upbestand (JSON verwacht)")
+    if data.get("versie") != 1 or "tabellen" not in data:
+        raise HTTPException(400, "Onbekend back-upformaat")
+
+    con = DB()
+    for tabel in reversed(HERSTEL_VOLGORDE):
+        con.execute(f"DELETE FROM {tabel}")
+    hersteld = {}
+    for tabel in HERSTEL_VOLGORDE:
+        rijen = data["tabellen"].get(tabel, [])
+        for r in rijen:
+            kolommen = list(r.keys())
+            plaatsen = ",".join("?" for _ in kolommen)
+            con.execute(f"INSERT INTO {tabel} ({','.join(kolommen)}) VALUES({plaatsen})",
+                        [r[k] for k in kolommen])
+        hersteld[tabel] = len(rijen)
+        # Postgres telt zijn id-teller niet vanzelf door bij expliciete id's:
+        # zonder dit botst de eerste nieuwe rij op een bestaand id.
+        if con.pg and rijen and "id" in rijen[0]:
+            con.execute(f"SELECT setval(pg_get_serial_sequence('{tabel}','id'), "
+                        f"(SELECT COALESCE(MAX(id),1) FROM {tabel}))")
+    con.commit(); con.close()
+    return {"hersteld": hersteld, "uit_backup_van": data.get("gemaakt_op")}
+
+
 @app.get("/api/cron/digest")
 def cron_digest(request: Request, test: int = 0):
     """Dagelijkse ochtendmail per AM. Aangeroepen door Vercel Cron (Bearer CRON_SECRET)."""
@@ -1204,7 +1268,8 @@ def stats():
 @app.get("/api/meta")
 def meta():
     return {"statussen": STATUSSEN, "persistent": PERSISTENT, "beveiligd": bool(ACCESS_CODE),
-            "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief()}
+            "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief(),
+            "backup": backup_actief()}
 
 
 @app.get("/")

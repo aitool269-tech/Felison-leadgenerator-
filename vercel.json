@@ -2,7 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
   "rewrites": [{ "source": "/", "destination": "/index.html" }],
-  "crons": [{ "path": "/api/cron/digest", "schedule": "0 7 * * *" }],
+  "crons": [
+    { "path": "/api/cron/digest", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/backup", "schedule": "0 2 * * *" }
+  ],
   "functions": {
     "app.py": {
       "maxDuration": 60,
