@@ -39,7 +39,7 @@ SERPER_KEY = os.environ.get("SERPER_API_KEY")
 CRON_SECRET = os.environ.get("CRON_SECRET")
 
 from mail import stuur_mail, mail_actief  # noqa: E402
-from backup import maak_backup, push_naar_github, backup_actief  # noqa: E402
+from backup import maak_backup, push_naar_github, GEHEIME_INSTELLINGEN  # noqa: E402
 
 DEMO_MODE = bool(os.environ.get("DEMO_MODE"))
 
@@ -996,12 +996,22 @@ def del_am(naam: str):
 class InstellingenBody(BaseModel):
     marketing_email: str = None
     feedback_email: str = None
+    github_token: str = None
+    backup_repo: str = None
+
+
+# Deze waarde sturen we terug in plaats van het echte geheim; komt hij terug bij
+# een opslag-actie, dan laten we het bestaande geheim ongemoeid.
+GEHEIM_MASKER = "••••••••"
 
 
 @app.get("/api/instellingen")
 def get_instellingen():
     con = DB()
-    out = {r["sleutel"]: r["waarde"] for r in con.execute("SELECT * FROM instellingen")}
+    out = {}
+    for r in con.execute("SELECT * FROM instellingen"):
+        # Geheimen gaan nooit terug naar de browser; alleen of ze gezet zijn.
+        out[r["sleutel"]] = GEHEIM_MASKER if r["sleutel"] in GEHEIME_INSTELLINGEN and r["waarde"] else r["waarde"]
     con.close()
     return out
 
@@ -1009,8 +1019,10 @@ def get_instellingen():
 @app.post("/api/instellingen")
 def zet_instellingen(body: InstellingenBody):
     con = DB()
-    for sleutel in ("marketing_email", "feedback_email"):
+    for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo"):
         waarde = getattr(body, sleutel)
+        if waarde == GEHEIM_MASKER:
+            continue  # onveranderd gelaten in de UI
         if waarde is not None:
             if con.pg:
                 con.execute("INSERT INTO instellingen(sleutel, waarde) VALUES(?,?) "
@@ -1158,6 +1170,13 @@ def backup_download():
                     headers={"Content-Disposition": f'attachment; filename="{naam}"'})
 
 
+def backup_koppeling(con):
+    """Token en repo uit de app-instellingen; omgevingsvariabelen als fallback."""
+    token = lees_instelling(con, "github_token") or os.environ.get("GITHUB_TOKEN")
+    repo = lees_instelling(con, "backup_repo") or os.environ.get("BACKUP_REPO")
+    return token, repo
+
+
 @app.get("/api/cron/backup")
 def cron_backup(request: Request):
     """Dagelijkse volledige back-up naar de GitHub-repo (Vercel Cron)."""
@@ -1166,8 +1185,19 @@ def cron_backup(request: Request):
         raise HTTPException(401, "Ongeldige cron-authenticatie")
     con = DB()
     data = maak_backup(con)
+    token, repo = backup_koppeling(con)
     con.close()
-    return push_naar_github(data)
+    return push_naar_github(data, token, repo)
+
+
+@app.post("/api/backup/nu")
+def backup_nu():
+    """Handmatig een back-up naar GitHub duwen (knop in Instellingen)."""
+    con = DB()
+    data = maak_backup(con)
+    token, repo = backup_koppeling(con)
+    con.close()
+    return push_naar_github(data, token, repo)
 
 
 # Volgorde is belangrijk: kindtabellen eerst leeg, ouders (leads) eerst terug.
@@ -1188,6 +1218,9 @@ async def backup_restore(bestand: UploadFile = File(...), bevestiging: str = "")
         raise HTTPException(400, "Onbekend back-upformaat")
 
     con = DB()
+    # De back-up bevat bewust geen geheimen (zie backup.py). Zonder deze stap zou
+    # een herstel het GitHub-token wissen en zou de back-up stilletjes stoppen.
+    geheimen = [(s, lees_instelling(con, s)) for s in GEHEIME_INSTELLINGEN]
     for tabel in reversed(HERSTEL_VOLGORDE):
         con.execute(f"DELETE FROM {tabel}")
     hersteld = {}
@@ -1204,6 +1237,9 @@ async def backup_restore(bestand: UploadFile = File(...), bevestiging: str = "")
         if con.pg and rijen and "id" in rijen[0]:
             con.execute(f"SELECT setval(pg_get_serial_sequence('{tabel}','id'), "
                         f"(SELECT COALESCE(MAX(id),1) FROM {tabel}))")
+    for sleutel, waarde in geheimen:
+        if waarde:
+            con.execute("INSERT INTO instellingen(sleutel, waarde) VALUES(?,?)", (sleutel, waarde))
     con.commit(); con.close()
     return {"hersteld": hersteld, "uit_backup_van": data.get("gemaakt_op")}
 
@@ -1265,11 +1301,18 @@ def stats():
     return out
 
 
+def backup_ingesteld():
+    con = DB()
+    token, repo = backup_koppeling(con)
+    con.close()
+    return bool(token and repo)
+
+
 @app.get("/api/meta")
 def meta():
     return {"statussen": STATUSSEN, "persistent": PERSISTENT, "beveiligd": bool(ACCESS_CODE),
             "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief(),
-            "backup": backup_actief()}
+            "backup": backup_ingesteld()}
 
 
 @app.get("/")

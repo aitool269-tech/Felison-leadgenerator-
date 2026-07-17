@@ -266,10 +266,21 @@
 
   <div class="paneel" style="margin-top:16px">
     <h3>Back-up</h3>
-    <p>Elke nacht om 3:00 wordt automatisch een volledige kopie van álle data (leads én de complete opvolghistorie) naar de privé GitHub-repo geschreven. Elke dag blijft daar terugvindbaar via de bestandshistorie.</p>
-    <button class="knop secundair" id="backupDownloadKnop">⬇ Download nu een volledige back-up</button>
+    <p>Elke nacht om 3:00 wordt automatisch een volledige kopie van álle data (leads én de complete opvolghistorie) naar een privé GitHub-repo geschreven. Elke dag blijft daar terugvindbaar via de bestandshistorie.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>Back-up-repo</label>
+        <input type="text" id="instBackupRepo" placeholder="eigenaar/repo-naam" style="width:100%"></div>
+      <div><label>GitHub-token</label>
+        <input type="password" id="instGithubToken" placeholder="github_pat_…" autocomplete="off" style="width:100%"></div>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin:8px 0 0">Het token wordt versleuteld bewaard, nooit teruggetoond en komt niet in de back-up terecht.</p>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="knop" id="backupInstOpslaan">Opslaan</button>
+      <button class="knop secundair" id="backupNuKnop">Test: maak nu een back-up</button>
+      <button class="knop secundair" id="backupDownloadKnop">⬇ Download volledige back-up</button>
+    </div>
     <div id="backupStatus" style="font-size:12.5px;color:var(--dim);margin-top:10px"></div>
-    <div id="backupWaarschuwing" hidden style="margin-top:10px;background:var(--amberbg);color:var(--amber);border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:600">⚠ De automatische back-up staat nog uit: er is geen GITHUB_TOKEN/BACKUP_REPO geconfigureerd op de server.</div>
+    <div id="backupWaarschuwing" hidden style="margin-top:10px;background:var(--amberbg);color:var(--amber);border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:600">⚠ De automatische back-up staat nog uit: vul hierboven de repo en het token in.</div>
   </div>
 
   <div class="paneel" style="margin-top:16px">
@@ -1046,6 +1057,8 @@ async function laadInstellingen() {
     const [inst, rel] = await Promise.all([api('/api/instellingen'), api('/api/relaties/status')]);
     $('#instMarketing').value = inst.marketing_email || '';
     $('#instFeedback').value = inst.feedback_email || '';
+    $('#instBackupRepo').value = inst.backup_repo || '';
+    $('#instGithubToken').value = inst.github_token || '';  // gemaskeerd als het gezet is
     $('#relatiesStatus').textContent = rel.relaties
       ? `Felison: ${rel.per_bron.Felison} · Nedasco: ${rel.per_bron.Nedasco} · ${rel.te_controleren} lead(s) wachten op controle`
       : 'Nog geen relatielijsten geüpload.';
@@ -1079,6 +1092,29 @@ function koppelRelatieUpload(bron) {
 }
 koppelRelatieUpload('Felison');
 koppelRelatieUpload('Nedasco');
+
+$('#backupInstOpslaan').onclick = async () => {
+  const s = $('#backupStatus'); s.textContent = 'Opslaan…';
+  try {
+    await api('/api/instellingen', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({backup_repo:$('#instBackupRepo').value.trim(), github_token:$('#instGithubToken').value.trim()})});
+    s.textContent = 'Opgeslagen ✓ — klik op "Test: maak nu een back-up" om te controleren of het werkt.';
+    laadInstellingen();
+    const meta = await api('/api/meta'); $('#backupWaarschuwing').hidden = !!meta.backup;
+  } catch(e) { s.textContent = 'Fout: ' + e.message; }
+};
+
+$('#backupNuKnop').onclick = async () => {
+  const knop = $('#backupNuKnop'), s = $('#backupStatus');
+  knop.disabled = true; s.textContent = 'Bezig met back-up naar GitHub…';
+  try {
+    const r = await api('/api/backup/nu', {method:'POST'});
+    s.textContent = r.verzonden
+      ? `✅ Gelukt: back-up van ${Math.round(r.bytes/1024)} KB staat in ${r.repo} (${r.bestand}).`
+      : `⚠ Niet gelukt: ${r.reden}`;
+  } catch(e) { s.textContent = 'Fout: ' + e.message; }
+  knop.disabled = false;
+};
 
 $('#backupDownloadKnop').onclick = async () => {
   const knop = $('#backupDownloadKnop');
