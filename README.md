@@ -60,6 +60,15 @@ Elke statuswissel wordt gelogd met datum, AM en notitie. AM's beheer je in tab *
 
 Upload onder Instellingen een lijst bedrijfsnamen van bestaande relaties (.xlsx/.csv, kolom "naam" of eerste kolom; upload vervangt de lijst). Leads die op genormaliseerde naam matchen krijgen ⚠ "relatie?"; een AM bevestigt ("Bestaande relatie", eindstatus) of verwerpt ("geen match", komt niet terug) in het leaddetail. Matching draait bij elke upload én elke AFM-import.
 
+## Back-up en herstel
+
+Neon's gratis plan bewaart maar **6 uur** geschiedenis en heeft geen automatische back-ups — daarom maakt de app zijn eigen.
+
+- **Dagelijks automatisch** (cron 02:00): `/api/cron/backup` dumpt alle 10 tabellen en schrijft ze naar de privé back-uprepo. Eén rollend bestand (`backup/leadgenerator-backup.json`); Git bewaart elke dag als delta, dus de repo blijft klein en elke dag is terug te halen via de bestandshistorie op GitHub.
+- **Handmatig**: knop in Instellingen → Back-up (`/api/backup/download`). Doen vóór elke risicovolle actie, zoals de maandimport.
+- **Herstellen**: `POST /api/backup/restore` met het bestand én `bevestiging=HERSTEL`. Wist alle tabellen en zet de back-up terug, inclusief reset van de Postgres-id-tellers (zonder dat botsen nieuwe records na een herstel). Getest: back-up → alles wissen → herstel → data compleet terug, nieuwe records werken.
+- Env vars: `GITHUB_TOKEN` (fine-grained, alleen contents:write op de back-uprepo), `BACKUP_REPO` (`owner/repo`), optioneel `BACKUP_PAD`. Zonder deze staat de automatische back-up uit (Instellingen toont dan een waarschuwing); de handmatige download werkt altijd.
+
 ## Data
 
 - `leads.db` (SQLite) — alle leads, statushistorie, AM's en importlog. **Back-uppen = dit ene bestand kopiëren.**
