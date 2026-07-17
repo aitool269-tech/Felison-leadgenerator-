@@ -824,7 +824,7 @@ async function laadRapport() {
   const pjEffectRijen = pj.effect.map(e => `<tr><td>${e.label}</td><td>${e.leads}</td>
     <td>${e.in_gesprek} <span style="color:var(--dim)">(${pct(e.in_gesprek,e.leads)})</span></td>
     <td>${e.aanstelling}</td><td><b>${e.conversie_pct}%</b></td></tr>`).join('');
-  const cohortRijen = r.cohorten.map(c => `<tr><td>${c.maand}</td><td>${c.leads}</td>
+  const cohortRijen = r.cohorten.map(c => `<tr><td>${c.maand.split('-').reverse().join('-')}</td><td>${c.leads}</td>
     <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
     <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
     <td>${c.aanstelling} <span style="color:var(--dim)">(${pct(c.aanstelling,c.leads)})</span></td>
