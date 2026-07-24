@@ -40,6 +40,7 @@ CRON_SECRET = os.environ.get("CRON_SECRET")
 
 from mail import stuur_mail, mail_actief  # noqa: E402
 from backup import maak_backup, push_naar_github, GEHEIME_INSTELLINGEN  # noqa: E402
+from push import stuur_push, push_actief, VAPID_PUBLIC  # noqa: E402
 
 DEMO_MODE = bool(os.environ.get("DEMO_MODE"))
 
@@ -337,11 +338,25 @@ def claim(lead_id: int, body: ClaimBody):
     con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                 (lead_id, "Geclaimd", body.am, None))
     marketing = lees_instelling(con, "marketing_email")
-    con.commit(); con.close()
+    con.commit()
+
+    push_resultaat = None
+    if eerste_claim:
+        # Marketing meteen een notificatie: haar vervolgstap is het presentje.
+        # Een pushfout mag de claim nooit blokkeren.
+        try:
+            push_resultaat = stuur_push(
+                con, marketing_identiteit(con),
+                "Nieuwe lead geclaimd 🎁",
+                f"{lead['naam']} ({lead['plaats'] or 'plaats onbekend'}) — geclaimd door {body.am}. Presentje versturen.",
+                "/")
+        except Exception:
+            pass
+    con.close()
 
     mail_resultaat = None
     if eerste_claim:
-        # Marketing (Nicky) direct informeren: haar vervolgstap is het presentje.
+        # Marketing (Nicky) ook per mail informeren zodra e-mail ooit werkt.
         # Een mailfout mag de claim nooit blokkeren.
         try:
             adresregel = ", ".join(x for x in [lead["adres"], lead["postcode"], lead["plaats"]] if x) or "adres onbekend"
@@ -355,7 +370,7 @@ def claim(lead_id: int, body: ClaimBody):
                 "Open het leaddetail")
         except Exception:
             pass
-    return {"ok": True, "mail": mail_resultaat}
+    return {"ok": True, "push": push_resultaat, "mail": mail_resultaat}
 
 
 @app.post("/api/leads/{lead_id}/vrijgeven")
@@ -991,6 +1006,77 @@ def del_am(naam: str):
     return {"ok": True}
 
 
+# ---------- push-notificaties ----------
+
+@app.get("/api/push/sleutel")
+def push_sleutel():
+    con = DB()
+    marketing = lees_instelling(con, "marketing_naam") or MARKETING_STANDAARD
+    con.close()
+    return {"actief": push_actief(), "publieke_sleutel": VAPID_PUBLIC, "marketing_naam": marketing}
+
+
+class PushAanmeldBody(BaseModel):
+    identiteit: str
+    endpoint: str
+    p256dh: str
+    auth: str
+
+
+@app.post("/api/push/aanmelden")
+def push_aanmelden(body: PushAanmeldBody):
+    con = DB()
+    # Eén apparaat hoort bij één identiteit: kiest iemand een andere naam,
+    # dan verhuist het abonnement mee in plaats van te verdubbelen.
+    con.execute("DELETE FROM push_abonnementen WHERE endpoint=?", (body.endpoint,))
+    con.execute("INSERT INTO push_abonnementen(identiteit, endpoint, p256dh, auth) VALUES(?,?,?,?)",
+                (body.identiteit.strip(), body.endpoint, body.p256dh, body.auth))
+    con.commit()
+    aantal = con.execute("SELECT COUNT(*) n FROM push_abonnementen WHERE identiteit=?",
+                         (body.identiteit.strip(),)).fetchone()["n"]
+    con.close()
+    return {"ok": True, "apparaten_voor_identiteit": aantal}
+
+
+class PushAfmeldBody(BaseModel):
+    endpoint: str
+
+
+@app.post("/api/push/afmelden")
+def push_afmelden(body: PushAfmeldBody):
+    con = DB()
+    con.execute("DELETE FROM push_abonnementen WHERE endpoint=?", (body.endpoint,))
+    con.commit(); con.close()
+    return {"ok": True}
+
+
+class PushTestBody(BaseModel):
+    identiteit: str
+
+
+@app.post("/api/push/test")
+def push_test(body: PushTestBody):
+    con = DB()
+    r = stuur_push(con, body.identiteit.strip(), "Notificaties werken ✅",
+                   "Zo ziet een melding uit de Leadgenerator eruit.", "/")
+    con.close()
+    return r
+
+
+@app.get("/api/push/status")
+def push_status(identiteit: str = None):
+    con = DB()
+    if identiteit:
+        n = con.execute("SELECT COUNT(*) n FROM push_abonnementen WHERE identiteit=?",
+                        (identiteit,)).fetchone()["n"]
+    else:
+        n = con.execute("SELECT COUNT(*) n FROM push_abonnementen").fetchone()["n"]
+    per = {r["identiteit"]: r["n"] for r in
+           con.execute("SELECT identiteit, COUNT(*) n FROM push_abonnementen GROUP BY identiteit")}
+    con.close()
+    return {"apparaten": n, "per_identiteit": per, "actief": push_actief()}
+
+
 # ---------- instellingen, relaties, feedback, digest ----------
 
 class InstellingenBody(BaseModel):
@@ -998,6 +1084,14 @@ class InstellingenBody(BaseModel):
     feedback_email: str = None
     github_token: str = None
     backup_repo: str = None
+    marketing_naam: str = None
+
+
+MARKETING_STANDAARD = "Marketing"
+
+
+def marketing_identiteit(con):
+    return lees_instelling(con, "marketing_naam") or MARKETING_STANDAARD
 
 
 # Deze waarde sturen we terug in plaats van het echte geheim; komt hij terug bij
@@ -1019,7 +1113,7 @@ def get_instellingen():
 @app.post("/api/instellingen")
 def zet_instellingen(body: InstellingenBody):
     con = DB()
-    for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo"):
+    for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo", "marketing_naam"):
         waarde = getattr(body, sleutel)
         if waarde == GEHEIM_MASKER:
             continue  # onveranderd gelaten in de UI
@@ -1254,7 +1348,8 @@ def cron_digest(request: Request, test: int = 0):
         return {"overgeslagen": "weekend"}
     vandaag = date.today().isoformat()
     con = DB()
-    ams = list(con.execute("SELECT * FROM ams WHERE email IS NOT NULL AND email != ''"))
+    # Alle AM's, niet alleen die met e-mail: push is nu het hoofdkanaal.
+    ams = list(con.execute("SELECT * FROM ams"))
     resultaat = []
     for am in ams:
         leads = list(con.execute("SELECT * FROM leads WHERE am=?", (am["naam"],)))
@@ -1266,21 +1361,33 @@ def cron_digest(request: Request, test: int = 0):
         if not (achterstallig or vandaag_gepland or opnieuw or checks):
             resultaat.append({"am": am["naam"], "verzonden": False, "reden": "niets te doen"})
             continue
-        regels = []
+        regels, kort = [], []
         if achterstallig:
             regels.append("<b>Achterstallig:</b> " + " · ".join(
                 f"{l['naam']} ({l['vervolg_actie'] or 'vervolgactie'}, {l['vervolg_datum']})" for l in achterstallig))
+            kort.append(f"{len(achterstallig)} achterstallig")
         if vandaag_gepland:
             regels.append("<b>Vandaag gepland:</b> " + " · ".join(
                 f"{l['naam']} ({l['vervolg_actie'] or 'vervolgactie'})" for l in vandaag_gepland))
+            kort.append(f"{len(vandaag_gepland)} vandaag")
         if opnieuw:
             regels.append("<b>Opnieuw binnengekomen:</b> " + " · ".join(l["naam"] for l in opnieuw))
+            kort.append(f"{len(opnieuw)} opnieuw binnen")
         if checks:
             regels.append("<b>Relatiecheck nodig:</b> " + " · ".join(l["naam"] for l in checks))
+            kort.append(f"{len(checks)} relatiecheck")
         totaal = len(achterstallig) + len(vandaag_gepland) + len(opnieuw) + len(checks)
-        r = stuur_mail(am["email"], f"Leadgenerator: {totaal} actie(s) voor vandaag",
-                       f"Goedemorgen {am['naam']}, dit staat er voor je klaar", regels)
-        resultaat.append({"am": am["naam"], **r})
+
+        regel = {"am": am["naam"]}
+        # Push is het hoofdkanaal; mail is slapend en doet alleen mee zodra er
+        # ooit een RESEND_API_KEY is (en de AM een adres heeft).
+        regel["push"] = stuur_push(
+            con, am["naam"], f"{totaal} actie(s) voor vandaag",
+            ", ".join(kort) + " — tik om te openen", "/")
+        if am["email"] and mail_actief():
+            regel["mail"] = stuur_mail(am["email"], f"Leadgenerator: {totaal} actie(s) voor vandaag",
+                                       f"Goedemorgen {am['naam']}, dit staat er voor je klaar", regels)
+        resultaat.append(regel)
     con.close()
     return {"datum": vandaag, "resultaat": resultaat}
 
@@ -1312,7 +1419,7 @@ def backup_ingesteld():
 def meta():
     return {"statussen": STATUSSEN, "persistent": PERSISTENT, "beveiligd": bool(ACCESS_CODE),
             "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief(),
-            "backup": backup_ingesteld()}
+            "backup": backup_ingesteld(), "push": push_actief()}
 
 
 @app.get("/")

@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS feedback(
     naam TEXT, tekst TEXT, scherm TEXT,
     ts TEXT DEFAULT (datetime('now'))
 );;
+CREATE TABLE IF NOT EXISTS push_abonnementen(
+    id INTEGER PRIMARY KEY,
+    identiteit TEXT NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT, auth TEXT,
+    ts TEXT DEFAULT (datetime('now'))
+);;
 CREATE TABLE IF NOT EXISTS status_log(
     id INTEGER PRIMARY KEY,
     lead_id INTEGER REFERENCES leads(id),
@@ -114,6 +121,13 @@ CREATE TABLE IF NOT EXISTS relaties(
 CREATE TABLE IF NOT EXISTS feedback(
     id SERIAL PRIMARY KEY,
     naam TEXT, tekst TEXT, scherm TEXT,
+    ts TIMESTAMP DEFAULT now()
+);;
+CREATE TABLE IF NOT EXISTS push_abonnementen(
+    id SERIAL PRIMARY KEY,
+    identiteit TEXT NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT, auth TEXT,
     ts TIMESTAMP DEFAULT now()
 );;
 CREATE TABLE IF NOT EXISTS status_log(

@@ -2,8 +2,14 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Leadgenerator Felison</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Leadgenerator">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0A0AA0">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -118,16 +124,71 @@
   .legenda{display:flex;gap:14px;margin:0 0 12px;font-size:13px;flex-wrap:wrap;font-weight:600}
   .stip{display:inline-block;width:11px;height:11px;border-radius:99px;margin-right:5px;vertical-align:-1px}
   .melding{padding:12px 16px;border-radius:14px;margin:10px 0;background:var(--lavbg);color:var(--lavd);display:none;font-weight:600}
-  @media (max-width:880px){
+  .alleen-mobiel{display:none}
+  @media (max-width:1000px) and (min-width:701px){
     .app{flex-direction:column;margin:8px;min-height:calc(100vh - 16px)}
-    aside{width:100%;flex-direction:row;align-items:center;padding:8px 10px;border-right:0;border-bottom:1px solid var(--rand)}
+    aside{width:100%;flex-direction:row;align-items:center;padding:8px 10px;border-right:0;border-bottom:1px solid var(--rand);flex-wrap:wrap}
     .logo{padding:0 10px 0 2px}
     .navkop{display:none}
     nav{flex-direction:row}
     nav button{padding:8px 11px}
     .onder{margin:0 0 0 auto}
     .inhoud{padding:14px 12px}
-    .scorebar{width:64px}
+  }
+
+  /* Telefoon: zijbalk wordt een vaste tabbalk onderaan (iOS-patroon). */
+  @media (max-width:700px){
+    body{background:#fff}
+    .app{flex-direction:column;margin:0;border:0;border-radius:0;min-height:100vh;box-shadow:none}
+    aside{width:100%;flex-direction:row;align-items:center;justify-content:space-between;
+          padding:10px 14px;border-right:0;border-bottom:1px solid var(--rand);
+          padding-top:calc(10px + env(safe-area-inset-top))}
+    .logo{padding:0}
+    .woordmerk{font-size:21px}
+    .navkop{display:none}
+    /* Hoofdnavigatie naar onderen, notificatiebel blijft bovenin. */
+    aside > nav:not(.onder){position:fixed;left:0;right:0;bottom:0;z-index:50;flex-direction:row;
+        background:#fff;border-top:1px solid var(--rand);gap:0;padding:6px 4px;
+        padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+    aside > nav:not(.onder) button{flex:1;flex-direction:column;gap:3px;font-size:10.5px;padding:6px 2px;
+        border:0;border-radius:8px;min-height:48px;justify-content:center;text-align:center}
+    aside > nav:not(.onder) button svg{width:21px;height:21px}
+    aside > nav:not(.onder) button.actief{background:none;color:var(--lavd);box-shadow:none}
+    .onder{margin:0;flex-direction:row;gap:4px}
+    /* font-size:0 verbergt het tekstlabel; het icoon houdt zijn eigen maat. */
+    .onder button{padding:8px;min-height:44px;min-width:44px;justify-content:center;font-size:0;gap:0}
+    .onder button svg{width:20px;height:20px}
+    .inhoud{padding:14px 12px calc(76px + env(safe-area-inset-bottom))}
+    .alleen-mobiel{display:block;font-size:12.5px;color:var(--dim);font-weight:500}
+
+    /* Leadtabel wordt een compacte lijst: alleen wat een AM onderweg nodig heeft. */
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4),
+    th:nth-child(5), td:nth-child(5), th:nth-child(7), td:nth-child(7){display:none}
+    th,td{padding:11px 10px}
+    .scorebar{width:52px}
+    table{border-radius:12px}
+
+    .kaarten{grid-template-columns:1fr 1fr;gap:10px}
+    .stat b{font-size:22px}
+    .filters{gap:6px}
+    #fZoek{min-width:0;flex:1}
+    .paneel{padding:16px;border-radius:12px}
+    #kaart{height:60vh}
+    .mijnrij{flex-wrap:wrap;gap:10px;padding:14px 0}
+    .mijnrij .info{flex:1 1 100%;order:2}
+    .mijnrij .knop{order:3;margin-left:auto}
+    /* Rapport-tabellen mogen nooit buiten beeld vallen. */
+    #rapportInhoud .paneel table{display:block;overflow-x:auto;white-space:nowrap}
+
+    /* Leaddetail: het scherm waar de AM belt, noteert en een actie plant. */
+    dialog{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;border:0;
+           margin:0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+    dialog > div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important}
+    .tijdlijn{max-height:none}
+    /* 16px voorkomt dat iOS bij elk tikje op een veld inzoomt. */
+    select,input[type=text],input[type=password],input[type=date],textarea{font-size:16px;padding:11px 13px}
+    button.knop{padding:11px 16px;font-size:15px;min-height:44px}
+    .belpaneel{position:fixed;left:8px;right:8px;top:64px;min-width:0;max-height:60vh}
   }
 </style>
 </head>
@@ -192,6 +253,7 @@
   <div class="filters">
     <select id="mijnAmKeuze"><option value="">— kies je naam —</option></select>
   </div>
+  <div id="pushPaneelMijn"></div>
   <div id="mijnInhoud"></div>
 </section>
 
@@ -262,6 +324,21 @@
     </div>
     <div class="melding" id="relatiesMelding"></div>
     <div id="relatiesStatus" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
+  </div>
+
+  <div class="paneel" style="margin-top:16px">
+    <h3>Notificaties op je telefoon</h3>
+    <p>Zet de app op je iPhone-beginscherm (Deel-knop → "Zet op beginscherm"), open hem daarvandaan en zet notificaties aan. Je krijgt dan 's ochtends een melding met je openstaande acties, en marketing krijgt direct bericht bij een geclaimde lead.</p>
+    <div id="pushPaneelInst"></div>
+    <div style="margin-top:14px">
+      <label>Naam voor de marketing-notificaties</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="instMarketingNaam" placeholder="Marketing" style="min-width:200px">
+        <button class="knop secundair" id="marketingNaamOpslaan">Opslaan</button>
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin:6px 0 0">Onder deze naam meldt Nicky haar telefoon aan; zo blijft ze buiten de AM-lijst.</p>
+    </div>
+    <div id="pushApparaten" style="font-size:12.5px;color:var(--dim);margin-top:12px"></div>
   </div>
 
   <div class="paneel" style="margin-top:16px">
@@ -368,9 +445,9 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   b.classList.add('actief');
   ['leads','mijn','kaart','rapport','instellingen'].forEach(t => $('#tab-'+t).hidden = t !== b.dataset.tab);
   if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
-  if (b.dataset.tab === 'mijn') tekenMijn();
+  if (b.dataset.tab === 'mijn') { tekenMijn(); tekenPushPaneel('pushPaneelMijn'); }
   if (b.dataset.tab === 'rapport') laadRapport();
-  if (b.dataset.tab === 'instellingen') laadInstellingen();
+  if (b.dataset.tab === 'instellingen') { laadInstellingen(); tekenPushPaneel('pushPaneelInst'); laadPushApparaten(); }
 });
 const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
 
@@ -446,7 +523,8 @@ async function laadAlles() {
       document.querySelector('.inhoud').prepend(w);
     }
   }
-  [LEADS, AMS, PRESENTJE_TYPES] = await Promise.all([api('/api/leads'), api('/api/ams'), api('/api/presentje_types')]);
+  [LEADS, AMS, PRESENTJE_TYPES, PUSH_META] = await Promise.all([
+    api('/api/leads'), api('/api/ams'), api('/api/presentje_types'), api('/api/push/sleutel')]);
   vulFilters(); tekenTabel(); tekenStats(); tekenTeam(); tekenPresentjeTypes(); tekenMeldingen();
   if (!$('#tab-kaart').hidden) tekenKaart();
 }
@@ -475,6 +553,7 @@ function tekenTabel() {
     <tr>
       <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
       <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd);padding:2px 8px" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber);padding:2px 8px" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
+          <span class="alleen-mobiel">${l.plaats||'plaats onbekend'}${l.am?' · '+l.am:''}</span>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
@@ -724,6 +803,110 @@ function tekenMijn() {
   }
   const klaar = mijn.filter(l=>l.status==='Aanstelling').length;
   doel.innerHTML = html || `<div class="paneel">Niets te doen — je hebt ${mijn.length} lead(s), waarvan ${klaar} aanstelling(en). Claim nieuwe leads via het Leads-tabblad.</div>`;
+}
+
+// ---- push-notificaties ----
+let PUSH_META = {}, SW_REG = null;
+
+if ('serviceWorker' in navigator)
+  navigator.serviceWorker.register('/sw.js').then(r => SW_REG = r).catch(()=>{});
+
+const opBeginscherm = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
+const pushMogelijk = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+function b64naarUint8(base64) {
+  const pad = '='.repeat((4 - base64.length % 4) % 4);
+  const s = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(s);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function pushIdentiteiten() {
+  const namen = AMS.map(a => a.naam);
+  if (PUSH_META.marketing_naam) namen.push(PUSH_META.marketing_naam);
+  return namen;
+}
+
+async function tekenPushPaneel(doelId) {
+  const doel = $('#' + doelId);
+  if (!doel) return;
+  if (!PUSH_META.actief) {
+    doel.innerHTML = '<div style="font-size:13px;color:var(--dim)">Notificaties zijn nog niet geconfigureerd op de server.</div>';
+    return;
+  }
+  // iOS geeft alleen push aan een app die op het beginscherm staat.
+  if (isIOS() && !opBeginscherm()) {
+    doel.innerHTML = `<div style="background:var(--amberbg);color:var(--amber);border-radius:10px;padding:11px 13px;font-size:13px;font-weight:600">
+      📲 Zet de app eerst op je beginscherm: tik onderin op de <b>Deel</b>-knop → <b>Zet op beginscherm</b>. Open de app daarna vanaf je beginscherm; dan kun je notificaties aanzetten.</div>`;
+    return;
+  }
+  if (!pushMogelijk()) {
+    doel.innerHTML = '<div style="font-size:13px;color:var(--dim)">Deze browser ondersteunt geen notificaties.</div>';
+    return;
+  }
+  const identiteit = localStorage.pushIdentiteit || localStorage.mijnAm || '';
+  const aan = SW_REG && await SW_REG.pushManager.getSubscription();
+  const opties = pushIdentiteiten().map(n => `<option ${n===identiteit?'selected':''}>${n}</option>`).join('');
+  doel.innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="${doelId}Ident"><option value="">— ik ben… —</option>${opties}</select>
+      <button class="knop" id="${doelId}Aan">${aan ? 'Notificaties opnieuw instellen' : 'Zet notificaties aan op dit apparaat'}</button>
+      ${aan ? `<button class="knop secundair" id="${doelId}Test">Stuur testmelding</button>
+               <button class="knop secundair" id="${doelId}Uit">Uitzetten</button>` : ''}
+    </div>
+    <div id="${doelId}Status" style="font-size:12.5px;color:var(--dim);margin-top:8px">${aan ? '✅ Notificaties staan aan op dit apparaat' + (identiteit?` voor <b>${identiteit}</b>`:'') : ''}</div>`;
+
+  $('#'+doelId+'Aan').onclick = async () => {
+    const wie = $('#'+doelId+'Ident').value;
+    const s = $('#'+doelId+'Status');
+    if (!wie) { s.textContent = 'Kies eerst je naam.'; return; }
+    s.textContent = 'Bezig…';
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { s.textContent = 'Je hebt notificaties geweigerd. Zet ze aan via Instellingen → Meldingen op je telefoon.'; return; }
+      const reg = SW_REG || await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: b64naarUint8(PUSH_META.publieke_sleutel),
+      });
+      const j = sub.toJSON();
+      await api('/api/push/aanmelden', {method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({identiteit: wie, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth})});
+      localStorage.pushIdentiteit = wie;
+      s.innerHTML = '✅ Gelukt! Notificaties staan aan voor <b>' + wie + '</b>.';
+      tekenPushPaneel(doelId); laadPushApparaten();
+    } catch(e) { s.textContent = 'Niet gelukt: ' + e.message; }
+  };
+  if ($('#'+doelId+'Test')) $('#'+doelId+'Test').onclick = async () => {
+    const s = $('#'+doelId+'Status'); s.textContent = 'Testmelding versturen…';
+    const r = await api('/api/push/test', {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({identiteit: localStorage.pushIdentiteit || $('#'+doelId+'Ident').value})});
+    s.textContent = r.verzonden ? `✅ Verstuurd naar ${r.verzonden} apparaat/apparaten — de melding komt zo binnen.`
+                                : `⚠ Niet verstuurd: ${r.reden || (r.fouten||[]).join('; ')}`;
+  };
+  if ($('#'+doelId+'Uit')) $('#'+doelId+'Uit').onclick = async () => {
+    const reg = SW_REG || await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await api('/api/push/afmelden', {method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({endpoint: sub.endpoint})});
+      await sub.unsubscribe();
+    }
+    tekenPushPaneel(doelId); laadPushApparaten();
+  };
+}
+
+async function laadPushApparaten() {
+  const doel = $('#pushApparaten');
+  if (!doel) return;
+  try {
+    const r = await api('/api/push/status');
+    const per = Object.entries(r.per_identiteit || {});
+    doel.innerHTML = per.length
+      ? 'Aangemelde apparaten — ' + per.map(([n,c]) => `${n}: ${c}`).join(' · ')
+      : 'Nog geen apparaten aangemeld voor notificaties.';
+  } catch(e) {}
 }
 
 // ---- meldingen ----
@@ -1059,6 +1242,7 @@ async function laadInstellingen() {
     $('#instFeedback').value = inst.feedback_email || '';
     $('#instBackupRepo').value = inst.backup_repo || '';
     $('#instGithubToken').value = inst.github_token || '';  // gemaskeerd als het gezet is
+    $('#instMarketingNaam').value = inst.marketing_naam || '';
     $('#relatiesStatus').textContent = rel.relaties
       ? `Felison: ${rel.per_bron.Felison} · Nedasco: ${rel.per_bron.Nedasco} · ${rel.te_controleren} lead(s) wachten op controle`
       : 'Nog geen relatielijsten geüpload.';
@@ -1074,6 +1258,13 @@ $('#instOpslaan').onclick = async () => {
     body:JSON.stringify({marketing_email:$('#instMarketing').value.trim(), feedback_email:$('#instFeedback').value.trim()})});
   $('#instStatus').textContent = 'Opgeslagen ✓';
   setTimeout(()=>$('#instStatus').textContent='', 2500);
+};
+
+$('#marketingNaamOpslaan').onclick = async () => {
+  await api('/api/instellingen', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({marketing_naam:$('#instMarketingNaam').value.trim()})});
+  PUSH_META = await api('/api/push/sleutel');
+  tekenPushPaneel('pushPaneelInst');
 };
 
 const relatieBestanden = {};

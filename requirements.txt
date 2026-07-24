@@ -3,3 +3,4 @@ python-multipart
 openpyxl
 requests
 pg8000
+pywebpush
