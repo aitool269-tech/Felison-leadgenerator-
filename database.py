@@ -261,6 +261,14 @@ def init_db():
             except Exception:
                 pass
     d.execute("UPDATE leads SET score_basis=score WHERE score_basis IS NULL")
+    # Standaard presentje-soorten: idempotent toegevoegd, bestaande (eigen)
+    # soorten blijven staan. 'Geen' maakt de presentje-verstuurd-op-datum optioneel.
+    for _naam in ("Geen", "Toegangskaart AM-dag", "Gratis training Felison Academy"):
+        if d.pg:
+            d.execute("INSERT INTO presentje_types(naam) VALUES(?) ON CONFLICT(naam) DO NOTHING", (_naam,))
+        else:
+            d.execute("INSERT OR IGNORE INTO presentje_types(naam) VALUES(?)", (_naam,))
+    d.commit()
     # Backfill: bestaande leads die nog geen historieregel hebben, krijgen hun
     # oorspronkelijke binnenkomst (import + datum) als eerste historievermelding.
     d.execute("""INSERT INTO lead_historie(vergunningnummer, naam, import_id, ts)

@@ -397,14 +397,44 @@ def zet_status(lead_id: int, body: StatusBody):
     if body.status not in STATUSSEN:
         raise HTTPException(400, f"Ongeldige status; kies uit {STATUSSEN}")
     con = DB()
-    if not con.execute("SELECT 1 FROM leads WHERE id=?", (lead_id,)).fetchone():
+    lead = con.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
+    if not lead:
         con.close()
         raise HTTPException(404, "Lead niet gevonden")
+    naar_geclaimd = body.status == "Geclaimd" and lead["status"] != "Geclaimd"
+    presentje_geen = (lead["presentje_type"] or "").strip().lower() == "geen"
     con.execute("UPDATE leads SET status=? WHERE id=?", (body.status, lead_id))
     con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                 (lead_id, body.status, body.am, body.notitie))
-    con.commit(); con.close()
-    return {"ok": True}
+    marketing = lees_instelling(con, "marketing_email")
+    con.commit()
+
+    push_resultaat = mail_resultaat = None
+    if naar_geclaimd and not presentje_geen:
+        # Marketing meteen een notificatie: haar vervolgstap is het presentje.
+        # Een push-/mailfout mag de statuswijziging nooit blokkeren.
+        try:
+            push_resultaat = stuur_push(
+                con, marketing_identiteit(con),
+                "Lead geclaimd 🎁",
+                f"{lead['naam']} ({lead['plaats'] or 'plaats onbekend'}) — status gewijzigd naar Geclaimd. Presentje versturen.",
+                "/")
+        except Exception:
+            pass
+        try:
+            adresregel = ", ".join(x for x in [lead["adres"], lead["postcode"], lead["plaats"]] if x) or "adres onbekend"
+            mail_resultaat = stuur_mail(
+                marketing,
+                f"Lead geclaimd: {lead['naam']}",
+                "Lead geclaimd — presentje versturen",
+                [f"<b>{lead['naam']}</b> ({adresregel}) is zojuist op status Geclaimd gezet.",
+                 f"Contactpersoon: {lead['contactpersoon'] or 'onbekend'} · {lead['telefoon'] or 'geen telefoon'} · {lead['email'] or 'geen e-mail'}",
+                 "Registreer het presentje in het leaddetail van de app, of gebruik de werklijst-export onder Instellingen."],
+                "Open het leaddetail")
+        except Exception:
+            pass
+    con.close()
+    return {"ok": True, "push": push_resultaat, "mail": mail_resultaat}
 
 
 class WebsiteBody(BaseModel):
@@ -634,7 +664,7 @@ def registreer_presentje(con, lead_id, datum, soort, vervolg_datum=None, vervolg
 
 
 class PresentjeBody(BaseModel):
-    datum: str
+    datum: str = None
     type: str
     vervolg_datum: str = None
     vervolg_actie: str = None
@@ -642,8 +672,11 @@ class PresentjeBody(BaseModel):
 
 @app.post("/api/leads/{lead_id}/presentje")
 def zet_presentje(lead_id: int, body: PresentjeBody):
-    datum = norm_datum(body.datum)
-    if not datum:
+    # Bij 'Geen' wordt niets verstuurd, dus is een verstuurd-op-datum niet van
+    # toepassing; bij elk ander soort blijft die verplicht.
+    presentje_geen = body.type.strip().lower() == "geen"
+    datum = None if presentje_geen else norm_datum(body.datum)
+    if not presentje_geen and not datum:
         raise HTTPException(400, "Ongeldige datum; gebruik jjjj-mm-dd")
     con = DB()
     if not con.execute("SELECT 1 FROM leads WHERE id=?", (lead_id,)).fetchone():
@@ -1299,6 +1332,11 @@ HERSTEL_VOLGORDE = ["leads", "ams", "relaties", "instellingen", "presentje_types
                     "imports", "lead_historie", "status_log", "contactmomenten", "feedback"]
 
 
+def _kolommen_van(con, tabel):
+    """Echte kolomnamen van de tabel — whitelist tegen sleutels uit een geüpload bestand."""
+    return set(con.execute(f"SELECT * FROM {tabel} LIMIT 0").cols)
+
+
 @app.post("/api/backup/restore")
 async def backup_restore(bestand: UploadFile = File(...), bevestiging: str = ""):
     """Zet een back-upbestand volledig terug. Overschrijft ALLE huidige data."""
@@ -1319,9 +1357,12 @@ async def backup_restore(bestand: UploadFile = File(...), bevestiging: str = "")
         con.execute(f"DELETE FROM {tabel}")
     hersteld = {}
     for tabel in HERSTEL_VOLGORDE:
+        geldige_kolommen = _kolommen_van(con, tabel)
         rijen = data["tabellen"].get(tabel, [])
         for r in rijen:
-            kolommen = list(r.keys())
+            # Alleen sleutels die echt kolommen zijn: het back-upbestand komt van
+            # buiten (upload) en de kolomnamen mogen nooit ongefilterd in SQL.
+            kolommen = [k for k in r.keys() if k in geldige_kolommen]
             plaatsen = ",".join("?" for _ in kolommen)
             con.execute(f"INSERT INTO {tabel} ({','.join(kolommen)}) VALUES({plaatsen})",
                         [r[k] for k in kolommen])

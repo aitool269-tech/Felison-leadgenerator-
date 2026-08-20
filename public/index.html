@@ -735,21 +735,25 @@ window.openLead = async id => {
   $('#dOpslaan').onclick = async () => {
     const status = $('#dStatus').value, notitie = $('#dNotitie').value, web = $('#dWebsite').value;
     const json = b => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+    const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(), contactpersoon:$('#dContactpersoon').value.trim()};
+    const STATUSSEN_CONTACT_WAARSCHUWING = ['Benaderd','In gesprek','Aanstelling'];
+    if (status !== l.status && STATUSSEN_CONTACT_WAARSCHUWING.includes(status) && !g.telefoon && !g.email && !g.contactpersoon)
+      alert('Contactgegevens zijn niet ingevuld en kunnen waardevol zijn.');
     if (status !== l.status || notitie)
       await api(`/api/leads/${id}/status`, json({status, notitie, am:$('#dAm').value||l.am}));
     if (web !== (l.website||''))
       await api(`/api/leads/${id}/website`, json({website:web}));
-    const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(), contactpersoon:$('#dContactpersoon').value.trim()};
     if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||''))
       await api(`/api/leads/${id}/gegevens`, json(g));
     const v = {datum:$('#dVervolgDatum').value, actie:$('#dVervolgActie').value.trim()};
     if (v.datum!==(l.vervolg_datum||'') || v.actie!==(l.vervolg_actie||''))
       await api(`/api/leads/${id}/vervolg`, json(v));
     const pj = {type:$('#dPresentjeType').value, datum:$('#dPresentjeDatum').value};
-    if (pj.type && pj.datum && (pj.type!==(l.presentje_type||'') || pj.datum!==(l.presentje_datum||''))) {
+    const presentjeGeen = pj.type.trim().toLowerCase() === 'geen';
+    if (pj.type && (presentjeGeen || pj.datum) && (pj.type!==(l.presentje_type||'') || pj.datum!==(l.presentje_datum||''))) {
       try { await api(`/api/leads/${id}/presentje`, json(pj)); }
       catch(e){ return alert(e.message); }
-    } else if ((pj.type && !pj.datum) || (!pj.type && pj.datum))
+    } else if (!presentjeGeen && ((pj.type && !pj.datum) || (!pj.type && pj.datum)))
       return alert('Vul bij het presentje zowel het soort als de verstuurd-datum in.');
     leadDialog.close(); laadAlles();
   };
