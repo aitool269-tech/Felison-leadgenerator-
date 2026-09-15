@@ -455,7 +455,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
   if (b.dataset.tab === 'mijn') { tekenMijn(); tekenPushPaneel('pushPaneelMijn'); }
   if (b.dataset.tab === 'rapport') laadRapport();
-  if (b.dataset.tab === 'instellingen') openInstellingenTab();
+  if (b.dataset.tab === 'instellingen') openInstellingenTab().catch(e => console.error(e));
 });
 const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
 
@@ -477,6 +477,7 @@ function huidigeCode() {
 // Instellingen-wachtwoord alleen voor de duur van het tabblad-bezoek bewaren
 // (sessionStorage, niet localStorage) — het is een strengere, tweede laag
 // bovenop de gedeelde toegangscode en hoeft niet permanent te blijven staan.
+const GEHEIM_MASKER = '••••••••';  // moet exact overeenkomen met GEHEIM_MASKER in app.py
 function bewaarInstellingenCode(code) { sessionStorage.instellingenCode = code; }
 function huidigeInstellingenCode() { return sessionStorage.instellingenCode || ''; }
 
@@ -1268,8 +1269,8 @@ $('#amToevoegen').onclick = async () => {
 };
 
 // ---- e-mailinstellingen, relatielijst en feedback ----
-async function openInstellingenTab() {
-  if (META.instellingen_beveiligd && !huidigeInstellingenCode()) {
+async function openInstellingenTab(herkansing) {
+  if ((herkansing || META.instellingen_beveiligd) && !huidigeInstellingenCode()) {
     const code = prompt('Voer het Instellingen-wachtwoord in:');
     if (code === null) return;  // geannuleerd: tabblad blijft leeg tot een volgende poging
     bewaarInstellingenCode(code);
@@ -1280,7 +1281,7 @@ async function openInstellingenTab() {
     if (e.message === 'INSTELLINGEN_CODE_VEREIST') {
       sessionStorage.removeItem('instellingenCode');
       alert('Dat wachtwoord klopt niet.');
-      return openInstellingenTab();
+      return openInstellingenTab(true);
     }
     throw e;
   }
@@ -1329,7 +1330,7 @@ function koppelRelatieUpload(bron) {
     try {
       const r = await api('/api/relaties/import?bron='+bron, {method:'POST', body:fd});
       m.textContent = `Klaar: ${r.relaties} ${bron}-relaties ingelezen; ${r.mogelijke_matches} lead(s) gemarkeerd voor controle.`;
-      laadAlles(); laadInstellingen();
+      await laadAlles(); await laadInstellingen();
     } catch(e) { m.textContent = 'Fout: ' + e.message; }
   };
 }
@@ -1342,17 +1343,18 @@ $('#backupInstOpslaan').onclick = async () => {
     await api('/api/instellingen', {method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({backup_repo:$('#instBackupRepo').value.trim(), github_token:$('#instGithubToken').value.trim()})});
     s.textContent = 'Opgeslagen ✓ — klik op "Test: maak nu een back-up" om te controleren of het werkt.';
-    laadInstellingen();
+    await laadInstellingen();
     const meta = await api('/api/meta'); $('#backupWaarschuwing').hidden = !!meta.backup;
   } catch(e) { s.textContent = 'Fout: ' + e.message; }
 };
 
 $('#instWachtwoordOpslaan').onclick = async () => {
+  const waarde = $('#instWachtwoord').value.trim();
   await api('/api/instellingen', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({instellingen_wachtwoord: $('#instWachtwoord').value.trim()})});
-  bewaarInstellingenCode($('#instWachtwoord').value.trim());  // meteen bruikbaar in dit tabblad
-  $('#instStatus').textContent = 'Opgeslagen ✓';
-  setTimeout(()=>$('#instStatus').textContent='', 2500);
+    body: JSON.stringify({instellingen_wachtwoord: waarde})});
+  if (waarde && waarde !== GEHEIM_MASKER) bewaarInstellingenCode(waarde);  // meteen bruikbaar in dit tabblad
+  $('#backupStatus').textContent = 'Opgeslagen ✓';
+  setTimeout(()=>$('#backupStatus').textContent='', 2500);
 };
 
 $('#backupNuKnop').onclick = async () => {

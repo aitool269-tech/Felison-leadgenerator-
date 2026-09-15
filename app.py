@@ -55,8 +55,11 @@ if DEMO_MODE:
 # Alles wat bij de Instellingen-tab hoort (beheer, import, back-up) — bewust
 # exclusief de push-abonnement-routes, want een AM meldt zich daar ook vanuit
 # "Mijn leads" voor aan, niet alleen via Instellingen.
-INSTELLINGEN_PATHS = ("/api/import", "/api/onderhoud/", "/api/ams", "/api/presentje_types",
-                      "/api/instellingen", "/api/relaties", "/api/backup", "/api/feedback")
+# Deze twee worden ook buiten Instellingen gebruikt om de basis-UI te vullen
+# (AM-lijst, presentje-soorten bij elke paginalaad) — alleen wijzigen/verwijderen
+# vereist het instellingen-wachtwoord, gewoon bekijken (GET) niet.
+INSTELLINGEN_SCHRIJF_ALLEEN = ("/api/ams", "/api/presentje_types")
+INSTELLINGEN_PATHS = ("/api/import", "/api/onderhoud/", "/api/instellingen", "/api/relaties", "/api/backup")
 
 
 @app.middleware("http")
@@ -71,11 +74,14 @@ async def toegangscode_gate(request: Request, call_next):
         gegeven = (request.headers.get("x-toegangscode") or "").strip().lower()
         if gegeven != ACCESS_CODE.strip().lower():
             return JSONResponse({"detail": "Toegangscode vereist"}, status_code=401)
-    if request.url.path.startswith(INSTELLINGEN_PATHS):
+    pad = request.url.path
+    if (pad.startswith(INSTELLINGEN_PATHS)
+            or (pad.startswith(INSTELLINGEN_SCHRIJF_ALLEEN) and request.method != "GET")
+            or (pad == "/api/feedback" and request.method == "GET")):
         con = DB()
         vereist = lees_instelling(con, "instellingen_wachtwoord")
         con.close()
-        if vereist and (request.headers.get("x-instellingen-code") or "") != vereist:
+        if vereist and (request.headers.get("x-instellingen-code") or "").strip() != vereist:
             return JSONResponse({"detail": "Instellingen-wachtwoord vereist"}, status_code=401)
     return await call_next(request)
 
@@ -1191,7 +1197,7 @@ def get_instellingen():
 def zet_instellingen(body: InstellingenBody):
     con = DB()
     for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo",
-                     "marketing_naam", "instellingen_wachtwoord"):
+                    "marketing_naam", "instellingen_wachtwoord"):
         waarde = getattr(body, sleutel)
         if waarde == GEHEIM_MASKER:
             continue  # onveranderd gelaten in de UI
