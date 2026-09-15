@@ -24,6 +24,15 @@ python3 -m uvicorn app:app --port 8642
 
 Open daarna http://localhost:8642
 
+## Testen
+
+```bash
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+Tests draaien altijd tegen een tijdelijke, lege database (nooit tegen `leads.db`).
+
 ## Maandelijkse werkwijze
 
 1. Download bij de AFM het R0443-rapport (**Nieuwe inkomensvergunningen**, .xlsx) en het register **financiele-dienstverleners** (.csv).
