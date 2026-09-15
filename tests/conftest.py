@@ -1,7 +1,31 @@
 import importlib
+import os
 import sys
+import tempfile
 
 import pytest
+
+# Module-level guard: pytest importeert testmodules (o.a. test_scoring.py en
+# test_parsing.py, die `app` op moduleniveau importeren) bij collectie, vóór
+# enige fixture hieronder draait. Zonder deze guard raakt die import-tijd
+# database.init_db()-aanroep de ECHTE leads.db. Dit draait onvoorwaardelijk
+# zodra conftest.py geladen wordt, wat pytest garandeert vóór het importeren
+# van testmodules in dezelfde boom.
+for _risky_var in (
+    "DATABASE_URL",
+    "POSTGRES_URL",
+    "APP_ACCESS_CODE",
+    "DEMO_MODE",
+    "VERCEL",
+    "RESEND_API_KEY",
+    "VAPID_PUBLIC",
+    "VAPID_PRIVATE",
+):
+    os.environ.pop(_risky_var, None)
+
+import database  # noqa: E402
+
+database.SQLITE_PATH = os.path.join(tempfile.mkdtemp(), "test_leads.db")
 
 
 @pytest.fixture
@@ -32,7 +56,6 @@ def client(tmp_path, monkeypatch):
 
     from fastapi.testclient import TestClient
     with TestClient(app_module.app) as test_client:
-        test_client._app_module = app_module  # voor con_factory-fixture
         yield test_client
 
 
