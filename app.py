@@ -277,9 +277,9 @@ async def importeer(xlsx: UploadFile = File(...), register_csv: UploadFile = Fil
              l["begindatum_vergunning"], l["begindatum_dienst"], score, score, klasse, uitleg, import_id))
         nieuw += 1
 
-    con.execute("UPDATE imports SET nieuw=?, dubbel=?, gematcht=? WHERE id=?",
-                (nieuw, dubbel, gematcht, import_id))
     relatie_matches = match_relaties(con)
+    con.execute("UPDATE imports SET nieuw=?, dubbel=?, gematcht=?, heropend=?, mogelijke_relaties=? WHERE id=?",
+                (nieuw, dubbel, gematcht, heropend, relatie_matches, import_id))
     con.commit(); con.close()
     return {"nieuw": nieuw, "dubbel_overgeslagen": dubbel, "gematcht_met_register": gematcht,
             "totaal_in_xlsx": len(leads), "opnieuw_binnengekomen": opnieuw_binnen[:15],
@@ -1473,7 +1473,7 @@ def stats():
         "per_provincie": {r["provincie"] or "?": r["n"] for r in con.execute("SELECT provincie, COUNT(*) n FROM leads GROUP BY provincie")},
         "aanstellingen_per_am": {r["am"] or "—": r["n"] for r in con.execute(
             "SELECT am, COUNT(*) n FROM leads WHERE status='Aanstelling' GROUP BY am")},
-        "imports": list(con.execute("SELECT * FROM imports ORDER BY id DESC LIMIT 12")),
+        "imports": list(con.execute("SELECT * FROM imports ORDER BY id DESC LIMIT 50")),
     }
     con.close()
     return out

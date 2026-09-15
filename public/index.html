@@ -1133,8 +1133,16 @@ $('#importKnop').onclick = async () => {
 
 async function laadImports() {
   const s = await api('/api/stats');
-  $('#importHistorie').innerHTML = s.imports.map(i =>
-    `${i.ts} — ${i.bestanden}: <b>${i.nieuw} nieuw</b>, ${i.dubbel} dubbel`).join('<br>') || 'Nog geen imports.';
+  $('#importHistorie').innerHTML = s.imports.map(i => `
+    <div style="padding:6px 0;border-bottom:1px solid #F2F4F7">
+      <div>${String(i.ts).slice(0,16).replace('T',' ')} — ${i.bestanden}</div>
+      <small style="color:var(--dim)">
+        <b>${i.nieuw} nieuw</b> · ${i.dubbel} dubbel
+        ${i.heropend ? ` · ${i.heropend} heropend` : ''}
+        ${i.gematcht ? ` · ${i.gematcht} gematcht met register` : ''}
+        ${i.mogelijke_relaties ? ` · ${i.mogelijke_relaties} mogelijke relatie(s)` : ''}
+      </small>
+    </div>`).join('') || 'Nog geen imports.';
 }
 
 // ---- team ----

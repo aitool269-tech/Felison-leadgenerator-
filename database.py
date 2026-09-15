@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS imports(
     id INTEGER PRIMARY KEY,
     ts TEXT DEFAULT (datetime('now')),
     bestanden TEXT,
-    nieuw INTEGER, dubbel INTEGER, gematcht INTEGER
+    nieuw INTEGER, dubbel INTEGER, gematcht INTEGER,
+    heropend INTEGER, mogelijke_relaties INTEGER
 );;
 CREATE TABLE IF NOT EXISTS lead_historie(
     id INTEGER PRIMARY KEY,
@@ -141,7 +142,8 @@ CREATE TABLE IF NOT EXISTS imports(
     id SERIAL PRIMARY KEY,
     ts TIMESTAMP DEFAULT now(),
     bestanden TEXT,
-    nieuw INTEGER, dubbel INTEGER, gematcht INTEGER
+    nieuw INTEGER, dubbel INTEGER, gematcht INTEGER,
+    heropend INTEGER, mogelijke_relaties INTEGER
 );;
 CREATE TABLE IF NOT EXISTS lead_historie(
     id SERIAL PRIMARY KEY,
@@ -242,6 +244,8 @@ MIGRATIES = [
     "ALTER TABLE ams ADD COLUMN email TEXT",
     "ALTER TABLE relaties ADD COLUMN bron TEXT",
     "ALTER TABLE relaties DROP CONSTRAINT relaties_naam_norm_key",
+    "ALTER TABLE imports ADD COLUMN heropend INTEGER",
+    "ALTER TABLE imports ADD COLUMN mogelijke_relaties INTEGER",
 ]
 
 
