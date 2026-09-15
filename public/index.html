@@ -351,6 +351,14 @@
         <input type="password" id="instGithubToken" placeholder="github_pat_…" autocomplete="off" style="width:100%"></div>
     </div>
     <p style="font-size:12px;color:var(--dim);margin:8px 0 0">Het token wordt versleuteld bewaard, nooit teruggetoond en komt niet in de back-up terecht.</p>
+    <div style="margin-top:14px">
+      <label>Instellingen-wachtwoord</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="password" id="instWachtwoord" placeholder="••••••••" autocomplete="off" style="min-width:200px">
+        <button class="knop secundair" id="instWachtwoordOpslaan">Opslaan</button>
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin:6px 0 0">Extra wachtwoord dat alleen de Instellingen-tab afschermt, los van de teamtoegangscode. Leeg opslaan verwijdert de beveiliging weer.</p>
+    </div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="knop" id="backupInstOpslaan">Opslaan</button>
       <button class="knop secundair" id="backupNuKnop">Test: maak nu een back-up</button>
@@ -447,7 +455,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
   if (b.dataset.tab === 'mijn') { tekenMijn(); tekenPushPaneel('pushPaneelMijn'); }
   if (b.dataset.tab === 'rapport') laadRapport();
-  if (b.dataset.tab === 'instellingen') { laadInstellingen(); tekenPushPaneel('pushPaneelInst'); laadPushApparaten(); }
+  if (b.dataset.tab === 'instellingen') openInstellingenTab();
 });
 const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
 
@@ -465,6 +473,12 @@ function huidigeCode() {
   const m = document.cookie.match(/(?:^|;\s*)toegangscode=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : '';
 }
+
+// Instellingen-wachtwoord alleen voor de duur van het tabblad-bezoek bewaren
+// (sessionStorage, niet localStorage) — het is een strengere, tweede laag
+// bovenop de gedeelde toegangscode en hoeft niet permanent te blijven staan.
+function bewaarInstellingenCode(code) { sessionStorage.instellingenCode = code; }
+function huidigeInstellingenCode() { return sessionStorage.instellingenCode || ''; }
 
 function toonLogin(fout) {
   const ov = $('#loginOverlay');
@@ -493,9 +507,16 @@ const codeUitUrl = new URL(window.location).searchParams.get('code');
 if (codeUitUrl) probeerLogin(codeUitUrl);
 
 async function api(pad, opties = {}) {
-  opties.headers = Object.assign({}, opties.headers, {'X-Toegangscode': huidigeCode()});
+  opties.headers = Object.assign({}, opties.headers, {
+    'X-Toegangscode': huidigeCode(),
+    'X-Instellingen-Code': huidigeInstellingenCode(),
+  });
   const r = await fetch(pad, opties);
   if (r.status === 401) {
+    const fout = await r.json().catch(()=>({detail:''}));
+    if (fout.detail === 'Instellingen-wachtwoord vereist') {
+      throw new Error('INSTELLINGEN_CODE_VEREIST');
+    }
     toonLogin(huidigeCode() ? 'De opgeslagen code is niet (meer) geldig.' : '');
     throw new Error('Toegangscode vereist');
   }
@@ -1247,23 +1268,42 @@ $('#amToevoegen').onclick = async () => {
 };
 
 // ---- e-mailinstellingen, relatielijst en feedback ----
-async function laadInstellingen() {
+async function openInstellingenTab() {
+  if (META.instellingen_beveiligd && !huidigeInstellingenCode()) {
+    const code = prompt('Voer het Instellingen-wachtwoord in:');
+    if (code === null) return;  // geannuleerd: tabblad blijft leeg tot een volgende poging
+    bewaarInstellingenCode(code);
+  }
   try {
-    const [inst, rel] = await Promise.all([api('/api/instellingen'), api('/api/relaties/status')]);
-    $('#instMarketing').value = inst.marketing_email || '';
-    $('#instFeedback').value = inst.feedback_email || '';
-    $('#instBackupRepo').value = inst.backup_repo || '';
-    $('#instGithubToken').value = inst.github_token || '';  // gemaskeerd als het gezet is
-    $('#instMarketingNaam').value = inst.marketing_naam || '';
-    $('#relatiesStatus').textContent = rel.relaties
-      ? `Felison: ${rel.per_bron.Felison} · Nedasco: ${rel.per_bron.Nedasco} · ${rel.te_controleren} lead(s) wachten op controle`
-      : 'Nog geen relatielijsten geüpload.';
-    const fb = await api('/api/feedback');
-    $('#feedbackLijst').innerHTML = fb.length
-      ? fb.map(f=>`<div style="padding:7px 0;border-bottom:1px solid #F2F4F7"><b style="color:var(--tekst)">${f.naam}</b>
-          <span style="color:var(--dim)">· ${String(f.ts).slice(0,16).replace('T',' ')} · ${f.scherm||''}</span><br>${f.tekst}</div>`).join('')
-      : 'Nog geen feedback ontvangen.';
-  } catch(e) {}
+    await laadInstellingen();
+  } catch (e) {
+    if (e.message === 'INSTELLINGEN_CODE_VEREIST') {
+      sessionStorage.removeItem('instellingenCode');
+      alert('Dat wachtwoord klopt niet.');
+      return openInstellingenTab();
+    }
+    throw e;
+  }
+  tekenPushPaneel('pushPaneelInst');
+  laadPushApparaten();
+}
+
+async function laadInstellingen() {
+  const [inst, rel] = await Promise.all([api('/api/instellingen'), api('/api/relaties/status')]);
+  $('#instMarketing').value = inst.marketing_email || '';
+  $('#instFeedback').value = inst.feedback_email || '';
+  $('#instBackupRepo').value = inst.backup_repo || '';
+  $('#instGithubToken').value = inst.github_token || '';  // gemaskeerd als het gezet is
+  $('#instMarketingNaam').value = inst.marketing_naam || '';
+  $('#instWachtwoord').value = inst.instellingen_wachtwoord || '';  // gemaskeerd als het gezet is
+  $('#relatiesStatus').textContent = rel.relaties
+    ? `Felison: ${rel.per_bron.Felison} · Nedasco: ${rel.per_bron.Nedasco} · ${rel.te_controleren} lead(s) wachten op controle`
+    : 'Nog geen relatielijsten geüpload.';
+  const fb = await api('/api/feedback');
+  $('#feedbackLijst').innerHTML = fb.length
+    ? fb.map(f=>`<div style="padding:7px 0;border-bottom:1px solid #F2F4F7"><b style="color:var(--tekst)">${f.naam}</b>
+        <span style="color:var(--dim)">· ${String(f.ts).slice(0,16).replace('T',' ')} · ${f.scherm||''}</span><br>${f.tekst}</div>`).join('')
+    : 'Nog geen feedback ontvangen.';
 }
 $('#instOpslaan').onclick = async () => {
   await api('/api/instellingen', {method:'POST',headers:{'Content-Type':'application/json'},
@@ -1305,6 +1345,14 @@ $('#backupInstOpslaan').onclick = async () => {
     laadInstellingen();
     const meta = await api('/api/meta'); $('#backupWaarschuwing').hidden = !!meta.backup;
   } catch(e) { s.textContent = 'Fout: ' + e.message; }
+};
+
+$('#instWachtwoordOpslaan').onclick = async () => {
+  await api('/api/instellingen', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({instellingen_wachtwoord: $('#instWachtwoord').value.trim()})});
+  bewaarInstellingenCode($('#instWachtwoord').value.trim());  // meteen bruikbaar in dit tabblad
+  $('#instStatus').textContent = 'Opgeslagen ✓';
+  setTimeout(()=>$('#instStatus').textContent='', 2500);
 };
 
 $('#backupNuKnop').onclick = async () => {

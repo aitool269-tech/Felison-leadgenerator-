@@ -52,6 +52,13 @@ if DEMO_MODE:
     seed_indien_leeg()
 
 
+# Alles wat bij de Instellingen-tab hoort (beheer, import, back-up) — bewust
+# exclusief de push-abonnement-routes, want een AM meldt zich daar ook vanuit
+# "Mijn leads" voor aan, niet alleen via Instellingen.
+INSTELLINGEN_PATHS = ("/api/import", "/api/onderhoud/", "/api/ams", "/api/presentje_types",
+                      "/api/instellingen", "/api/relaties", "/api/backup", "/api/feedback")
+
+
 @app.middleware("http")
 async def toegangscode_gate(request: Request, call_next):
     # De cron-route heeft zijn eigen beveiliging (CRON_SECRET) — Vercel Cron
@@ -64,6 +71,12 @@ async def toegangscode_gate(request: Request, call_next):
         gegeven = (request.headers.get("x-toegangscode") or "").strip().lower()
         if gegeven != ACCESS_CODE.strip().lower():
             return JSONResponse({"detail": "Toegangscode vereist"}, status_code=401)
+    if request.url.path.startswith(INSTELLINGEN_PATHS):
+        con = DB()
+        vereist = lees_instelling(con, "instellingen_wachtwoord")
+        con.close()
+        if vereist and (request.headers.get("x-instellingen-code") or "") != vereist:
+            return JSONResponse({"detail": "Instellingen-wachtwoord vereist"}, status_code=401)
     return await call_next(request)
 
 
@@ -1148,6 +1161,7 @@ class InstellingenBody(BaseModel):
     github_token: str = None
     backup_repo: str = None
     marketing_naam: str = None
+    instellingen_wachtwoord: str = None
 
 
 MARKETING_STANDAARD = "Marketing"
@@ -1176,7 +1190,8 @@ def get_instellingen():
 @app.post("/api/instellingen")
 def zet_instellingen(body: InstellingenBody):
     con = DB()
-    for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo", "marketing_naam"):
+    for sleutel in ("marketing_email", "feedback_email", "github_token", "backup_repo",
+                     "marketing_naam", "instellingen_wachtwoord"):
         waarde = getattr(body, sleutel)
         if waarde == GEHEIM_MASKER:
             continue  # onveranderd gelaten in de UI
@@ -1488,7 +1503,11 @@ def backup_ingesteld():
 
 @app.get("/api/meta")
 def meta():
+    con = DB()
+    instellingen_beveiligd = bool(lees_instelling(con, "instellingen_wachtwoord"))
+    con.close()
     return {"statussen": STATUSSEN, "persistent": PERSISTENT, "beveiligd": bool(ACCESS_CODE),
+            "instellingen_beveiligd": instellingen_beveiligd,
             "serper": bool(SERPER_KEY), "demo": DEMO_MODE, "mail": mail_actief(),
             "backup": backup_ingesteld(), "push": push_actief()}
 

@@ -19,7 +19,7 @@ BACKUP_PAD = os.environ.get("BACKUP_PAD", "backup/leadgenerator-backup.json")
 
 # Instellingen die nooit in de back-up mogen belanden: de back-up gaat naar
 # GitHub, en een token in een repo wordt (terecht) direct ingetrokken.
-GEHEIME_INSTELLINGEN = {"github_token"}
+GEHEIME_INSTELLINGEN = {"github_token", "instellingen_wachtwoord"}
 
 # Alle tabellen die samen de volledige staat van de app vormen.
 TABELLEN = ["leads", "status_log", "contactmomenten", "lead_historie", "ams",
