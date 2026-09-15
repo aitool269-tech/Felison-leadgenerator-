@@ -1373,7 +1373,7 @@ $('#backupDownloadKnop').onclick = async () => {
   const knop = $('#backupDownloadKnop');
   knop.disabled = true; knop.textContent = 'Bezig…';
   try {
-    const r = await fetch('/api/backup/download', {headers:{'X-Toegangscode': huidigeCode()}});
+    const r = await fetch('/api/backup/download', {headers:{'X-Toegangscode': huidigeCode(), 'X-Instellingen-Code': huidigeInstellingenCode()}});
     if (!r.ok) throw new Error('Back-up mislukt (' + r.status + ')');
     const blob = await r.blob();
     const a = document.createElement('a');

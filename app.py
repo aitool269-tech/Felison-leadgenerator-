@@ -711,7 +711,7 @@ def zet_presentje(lead_id: int, body: PresentjeBody):
     con.commit()
 
     push_resultaat = mail_resultaat = None
-    if lead["am"]:
+    if lead["am"] and not presentje_geen:
         # Marketing heeft het presentje geregeld — de AM moet weten dat het onderweg
         # is en wat de vervolgstap is. Een push-/mailfout mag de registratie nooit
         # blokkeren (zelfde patroon als bij claim()/zet_status()).
