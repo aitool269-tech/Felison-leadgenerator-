@@ -65,7 +65,10 @@
   aside > nav button svg{width:21px;height:21px}
   aside > nav button.actief{background:none;color:var(--lavd);box-shadow:none}
   .inhoud{flex:1;min-width:0;padding:22px 26px calc(76px + env(safe-area-inset-bottom))}
-  main{max-width:1120px}
+  /* Geen vaste max-breedte meer: .app vult nu de hele viewport (geen
+     gecentreerde kaart met zijbalk), dus main mag de beschikbare breedte
+     van .inhoud gewoon volledig gebruiken. */
+  main{max-width:none}
   .kaarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:14px 16px;box-shadow:var(--schaduw)}
   .stat .ik{width:34px;height:34px;border-radius:10px;border:1px solid var(--rand);background:#fff;color:var(--dim);
