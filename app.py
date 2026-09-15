@@ -679,17 +679,47 @@ def zet_presentje(lead_id: int, body: PresentjeBody):
     if not presentje_geen and not datum:
         raise HTTPException(400, "Ongeldige datum; gebruik jjjj-mm-dd")
     con = DB()
-    if not con.execute("SELECT 1 FROM leads WHERE id=?", (lead_id,)).fetchone():
+    lead = con.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
+    if not lead:
         con.close()
         raise HTTPException(404, "Lead niet gevonden")
     soorten = {r["naam"] for r in con.execute("SELECT naam FROM presentje_types")}
     if body.type not in soorten:
         con.close()
         raise HTTPException(400, f"Onbekend soort presentje '{body.type}' — beheer de lijst via Instellingen")
-    registreer_presentje(con, lead_id, datum, body.type,
-                         norm_datum(body.vervolg_datum), body.vervolg_actie)
-    con.commit(); con.close()
-    return {"ok": True}
+    vervolg_datum = norm_datum(body.vervolg_datum)
+    registreer_presentje(con, lead_id, datum, body.type, vervolg_datum, body.vervolg_actie)
+    con.commit()
+
+    push_resultaat = mail_resultaat = None
+    if lead["am"]:
+        # Marketing heeft het presentje geregeld — de AM moet weten dat het onderweg
+        # is en wat de vervolgstap is. Een push-/mailfout mag de registratie nooit
+        # blokkeren (zelfde patroon als bij claim()/zet_status()).
+        vervolg_tekst = (f" Vervolgactie: {body.vervolg_actie or 'onbekend'} op {vervolg_datum}."
+                          if vervolg_datum else "")
+        try:
+            push_resultaat = stuur_push(
+                con, lead["am"],
+                "Presentje verstuurd 🎁",
+                f"{lead['naam']} — {body.type} verstuurd.{vervolg_tekst}",
+                "/")
+        except Exception:
+            pass
+        try:
+            am_rij = con.execute("SELECT email FROM ams WHERE naam=?", (lead["am"],)).fetchone()
+            mail_resultaat = stuur_mail(
+                am_rij["email"] if am_rij else None,
+                f"Presentje verstuurd: {lead['naam']}",
+                "Presentje verstuurd",
+                [f"Voor <b>{lead['naam']}</b> is het presentje '{body.type}' geregistreerd.",
+                 (f"Vervolgactie: {body.vervolg_actie or 'onbekend'} op {vervolg_datum}."
+                  if vervolg_datum else "Geen vervolgactie/-datum ingepland.")],
+                "Open het leaddetail")
+        except Exception:
+            pass
+    con.close()
+    return {"ok": True, "push": push_resultaat, "mail": mail_resultaat}
 
 
 PRESENTJE_EXPORT_KOP = ["Vergunningnr", "Naam", "Plaats", "AM", "Adres", "Postcode", "Contactpersoon",
