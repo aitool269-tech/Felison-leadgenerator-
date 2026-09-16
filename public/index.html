@@ -564,9 +564,17 @@ function naarLeadsMetFilter({status='', klasse='', am='', provincie='', extra=nu
   document.querySelector('nav button[data-tab=leads]').click();
 }
 
+const EXPORT_KNOP_TITEL_STANDAARD = 'Exporteert de leadlijst met de actieve filters';
+
 function tekenRapportFilterChip() {
+  const exportKnop = $('#exportKnop');
   let chip = $('#rapportFilterChip');
-  if (!rapportExtraFilter) { if (chip) chip.remove(); return; }
+  if (!rapportExtraFilter) {
+    if (chip) chip.remove();
+    exportKnop.disabled = false;
+    exportKnop.title = EXPORT_KNOP_TITEL_STANDAARD;
+    return;
+  }
   if (!chip) {
     chip = document.createElement('div');
     chip.id = 'rapportFilterChip';
@@ -574,6 +582,11 @@ function tekenRapportFilterChip() {
     $('#tab-leads').prepend(chip);
   }
   chip.innerHTML = `Rapportfilter: <b>${rapportExtraFilter.label}</b> <button class="knop secundair" style="padding:2px 10px" onclick="rapportExtraFilter=null;tekenTabel();tekenRapportFilterChip()">✕ wissen</button>`;
+  // De export bouwt zijn query alleen uit de standaard-filterdropdowns en kent
+  // dit rapportfilter niet — export daarom uitschakelen om een mismatch tussen
+  // getoonde lijst en geëxporteerd bestand te voorkomen.
+  exportKnop.disabled = true;
+  exportKnop.title = 'Exporteren is uitgeschakeld: er is een rapportfilter actief ("' + rapportExtraFilter.label + '") dat de export niet kan toepassen. Wis het filter om te exporteren.';
 }
 
 function gefilterd() {
@@ -1020,6 +1033,11 @@ $('#exportKnop').onclick = async () => {
 const STATUS_KLEUR = {'Nieuw':'#EF9F27','Opnieuw binnen':'#BA7517','Geclaimd':'#97C459','Bestaande relatie':'#888780',
   'Benaderd':'#639922','In gesprek':'#1D9E75','Aanstelling':'#0B9455','Afgewezen':'#E24B4A','Geen interesse':'#A32D2D'};
 
+// Escapet een DB-waarde die als JS-stringliteraal in een onclick-attribuut
+// (zelf al binnen een dubbel-aangehaald HTML-attribuut) wordt geplakt, zodat
+// een apostrof/quote/haakje in de waarde niet uit die context kan breken.
+function jsStr(s) { return String(s).replace(/[\\'"<>&]/g, c => ({'\\':'\\\\',"'":"\\'",'"':'&quot;','<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
 function donut(data, titel) {
   const rijen = data.filter(d => d.value > 0);
   const tot = rijen.reduce((s,d) => s + d.value, 0);
@@ -1035,8 +1053,9 @@ function donut(data, titel) {
     return s;
   }).join('');
   const legenda = rijen.map(d => {
-    const klik = d.onclick ? ` style="cursor:pointer" onclick="${d.onclick}"` : '';
-    return `<div${klik} style="font-size:12.5px;font-weight:600;white-space:nowrap"><span class="stip" style="background:${d.kleur}"></span>${d.label} <span style="color:var(--dim)">(${d.value})</span></div>`;
+    const stijl = `font-size:12.5px;font-weight:600;white-space:nowrap${d.onclick ? ';cursor:pointer' : ''}`;
+    const klik = d.onclick ? ` onclick="${d.onclick}"` : '';
+    return `<div style="${stijl}"${klik}><span class="stip" style="background:${d.kleur}"></span>${d.label} <span style="color:var(--dim)">(${d.value})</span></div>`;
   }).join('');
   return `<div style="display:flex;gap:16px;align-items:center">
     <svg width="120" height="120" viewBox="0 0 120 120" style="flex:none">${segs}
@@ -1059,6 +1078,19 @@ function periodeKnoppen() {
         onclick="rapportPeriode=${vanaf?`{vanaf:'${vanaf}'}`:'null'};laadRapport()">${label}</button>`;
     }).join('')}
   </div>`;
+}
+
+// Bij een actieve periode zijn de getoonde aantallen periode-gefilterd, maar
+// de Leads-tab kent geen periodefilter — doorklikken zou dan een andere
+// (grotere) lijst tonen dan het aangeklikte getal. Daarom bij een actieve
+// periode niet doorklikbaar maken i.p.v. een verkeerd resultaat te tonen.
+function magDoorklikken() { return !rapportPeriode; }
+
+// Rendert `html` als doorklikbare link naar de Leads-tab (met `filterCall`,
+// een naarLeadsMetFilter(...)-aanroep zonder ";return false") als dat mag,
+// anders als platte tekst.
+function drillLink(html, filterCall) {
+  return magDoorklikken() ? `<a href="#" onclick="${filterCall};return false">${html}</a>` : html;
 }
 
 function exportRapportCsv() {
@@ -1089,41 +1121,53 @@ async function laadRapport() {
   const pj = r.presentjes;
   const soorten = Object.entries(pj.per_soort).map(([label,value],i) =>
     ({label, value, kleur:PRESENTJE_PALET[i % PRESENTJE_PALET.length],
-      onclick:`naarLeadsMetFilter({extra:{label:'Presentje: ${label}', test:l=>l.presentje_type==='${label}'}})`}));
+      onclick: !magDoorklikken() ? null : (label === '?'
+        ? `naarLeadsMetFilter({extra:{label:'Presentje: onbekend soort', test:l=>!l.presentje_type}})`
+        : `naarLeadsMetFilter({extra:{label:'Presentje: ${jsStr(label)}', test:l=>l.presentje_type==='${jsStr(label)}'}})`)}));
   const pjMaandRijen = pj.per_maand.map(m => `<tr><td>${m.maand}</td><td>${m.aantal}</td></tr>`).join('');
   const pjEffectRijen = pj.effect.map(e => `<tr><td>${e.label}</td><td>${e.leads}</td>
     <td>${e.in_gesprek} <span style="color:var(--dim)">(${pct(e.in_gesprek,e.leads)})</span></td>
     <td>${e.aanstelling}</td><td><b>${e.conversie_pct}%</b></td></tr>`).join('');
   const cohortRijen = r.cohorten.map(c => `<tr>
-    <td><a href="#" onclick="naarLeadsMetFilter({extra:{label:'Ingestroomd in ${c.maand}', test:l=>String(l.aangemaakt).slice(0,7)==='${c.maand}'}});return false">${c.maand.split('-').reverse().join('-')}</a></td>
+    <td>${drillLink(c.maand.split('-').reverse().join('-'),
+      `naarLeadsMetFilter({extra:{label:'Ingestroomd in ${jsStr(c.maand)}', test:l=>String(l.aangemaakt).slice(0,7)==='${jsStr(c.maand)}'}})`)}</td>
     <td>${c.leads}</td>
     <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
     <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
     <td>${c.aanstelling} <span style="color:var(--dim)">(${pct(c.aanstelling,c.leads)})</span></td>
     <td>${c.afgesloten}</td></tr>`).join('');
-  const klasseRijen = r.klassen.map(k => `<tr><td><span class="badge k${k.klasse}">${k.klasse}</span></td>
-    <td><a href="#" onclick="naarLeadsMetFilter({klasse:'${k.klasse}'});return false">${k.leads}</a></td>
+  const klasseRijen = r.klassen.map(k => { const klasseFilter = k.klasse === '?'
+      ? `naarLeadsMetFilter({extra:{label:'Klasse onbekend', test:l=>!l.klasse}})`
+      : `naarLeadsMetFilter({klasse:'${jsStr(k.klasse)}'})`;
+    return `<tr><td><span class="badge k${k.klasse}">${k.klasse}</span></td>
+    <td>${drillLink(k.leads, klasseFilter)}</td>
     <td>${k.benaderd}</td>
-    <td><a href="#" onclick="naarLeadsMetFilter({klasse:'${k.klasse}',status:'Aanstelling'});return false">${k.aanstelling}</a></td>
-    <td><b>${k.conversie_pct}%</b></td></tr>`).join('');
-  const provincieRijen = r.provincies.map(p => `<tr>
-    <td><a href="#" onclick="naarLeadsMetFilter({provincie:'${p.provincie==='Onbekend'?'':p.provincie}'});return false">${p.provincie}</a></td>
+    <td>${k.aanstelling}</td>
+    <td><b>${k.conversie_pct}%</b></td></tr>`; }).join('');
+  const provincieRijen = r.provincies.map(p => { const provincieFilter = p.provincie === 'Onbekend'
+      ? `naarLeadsMetFilter({extra:{label:'Provincie onbekend', test:l=>!l.provincie}})`
+      : `naarLeadsMetFilter({provincie:'${jsStr(p.provincie)}'})`;
+    return `<tr>
+    <td>${drillLink(p.provincie, provincieFilter)}</td>
     <td>${p.leads}</td>
-    <td><a href="#" onclick="naarLeadsMetFilter({provincie:'${p.provincie==='Onbekend'?'':p.provincie}',status:'Aanstelling'});return false">${p.aanstelling}</a></td>
-    <td><b>${p.conversie_pct}%</b></td></tr>`).join('');
+    <td>${p.aanstelling}</td>
+    <td><b>${p.conversie_pct}%</b></td></tr>`; }).join('');
   const d = r.doorlooptijd;
 
   const statusDonut = donut(Object.entries(r.verdeling.status).map(([label,value]) =>
-    ({label, value, kleur:STATUS_KLEUR[label]||'#B4B2A9', onclick:`naarLeadsMetFilter({status:'${label}'})`})), 'status');
+    ({label, value, kleur:STATUS_KLEUR[label]||'#B4B2A9',
+      onclick: magDoorklikken() ? `naarLeadsMetFilter({status:'${jsStr(label)}'})` : null})), 'status');
   const klasseDonut = donut(Object.entries(r.verdeling.klasse).map(([label,value]) =>
     ({label:'Klasse '+label, value, kleur:{A:'#1E9E6A',B:'#EF9F27',C:'#B4B2A9'}[label]||'#B4B2A9',
-      onclick:`naarLeadsMetFilter({klasse:'${label}'})`})), 'klasse');
+      onclick: !magDoorklikken() ? null : (label === '?'
+        ? `naarLeadsMetFilter({extra:{label:'Klasse onbekend', test:l=>!l.klasse}})`
+        : `naarLeadsMetFilter({klasse:'${jsStr(label)}'})`)})), 'klasse');
   const amDonut = donut(Object.entries(r.verdeling.am).map(([naam,value]) => ({
     label: naam, value,
     kleur: naam==='Niet geclaimd' ? '#D3D1C7' : ((AMS.find(a=>a.naam===naam)||{}).kleur || '#B4B2A9'),
-    onclick: naam==='Niet geclaimd'
+    onclick: !magDoorklikken() ? null : (naam==='Niet geclaimd'
       ? `naarLeadsMetFilter({extra:{label:'Niet geclaimd', test:l=>!l.am}})`
-      : `naarLeadsMetFilter({am:'${naam}'})`,
+      : `naarLeadsMetFilter({am:'${jsStr(naam)}'})`),
   })), 'per AM');
 
   $('#rapportInhoud').innerHTML = `
@@ -1146,7 +1190,7 @@ async function laadRapport() {
     <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
       <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
       <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; "Leads" en "Aanstelling" wel.</p></div>
+      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek"/"Aanstelling" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; alleen "Leads" is klikbaar.</p></div>
     <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
       <table style="box-shadow:none"><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
       <tbody>${klasseRijen}</tbody></table></div>
@@ -1155,7 +1199,7 @@ async function laadRapport() {
       <tbody>${provincieRijen || '<tr><td colspan="4" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table></div>
     <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Relatiecheck</h3>
       <div class="kaarten" style="margin:0">
-        <div class="stat"><a href="#" onclick="naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}});return false"><b>${relStatus.per_uitkomst.mogelijk}</b></a><span>nog te controleren</span></div>
+        <div class="stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
         <div class="stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
         <div class="stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
         <div class="stat"><b>${relStatus.relaties}</b><span>relaties in de lijst (${Object.entries(relStatus.per_bron).map(([b,n])=>`${b}: ${n}`).join(' · ')})</span></div>
