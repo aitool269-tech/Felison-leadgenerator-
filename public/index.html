@@ -174,6 +174,11 @@
     select,input[type=text],input[type=password],input[type=date],textarea{font-size:16px;padding:11px 13px}
     button.knop{padding:11px 16px;font-size:15px;min-height:44px}
   }
+  @media print {
+    nav, aside > nav, .belpaneel, #belKnop, #instellingenKnop, button.knop { display: none !important; }
+    #tab-rapport { padding: 0 !important; }
+    .paneel { box-shadow: none !important; break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -1023,13 +1028,16 @@ function donut(data, titel) {
   let off = 0;
   const segs = rijen.map(d => {
     const len = d.value / tot * C;
+    const klik = d.onclick ? ` style="cursor:pointer" onclick="${d.onclick}"` : '';
     const s = `<circle r="${R}" cx="60" cy="60" fill="none" stroke="${d.kleur}" stroke-width="16"
-      stroke-dasharray="${len-1.5} ${C-len+1.5}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;
+      stroke-dasharray="${len-1.5} ${C-len+1.5}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"${klik}><title>${d.label}: ${d.value}</title></circle>`;
     off += len;
     return s;
   }).join('');
-  const legenda = rijen.map(d =>
-    `<div style="font-size:12.5px;font-weight:600;white-space:nowrap"><span class="stip" style="background:${d.kleur}"></span>${d.label} <span style="color:var(--dim)">(${d.value})</span></div>`).join('');
+  const legenda = rijen.map(d => {
+    const klik = d.onclick ? ` style="cursor:pointer" onclick="${d.onclick}"` : '';
+    return `<div${klik} style="font-size:12.5px;font-weight:600;white-space:nowrap"><span class="stip" style="background:${d.kleur}"></span>${d.label} <span style="color:var(--dim)">(${d.value})</span></div>`;
+  }).join('');
   return `<div style="display:flex;gap:16px;align-items:center">
     <svg width="120" height="120" viewBox="0 0 120 120" style="flex:none">${segs}
       <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="#181B27" font-family="inherit">${tot}</text>
@@ -1037,45 +1045,99 @@ function donut(data, titel) {
     <div>${legenda}</div></div>`;
 }
 
-function tekenDonuts() {
-  const per = veld => {
-    const t = {};
-    LEADS.forEach(l => { const k = l[veld] || '—'; t[k] = (t[k]||0) + 1; });
-    return t;
-  };
-  const statusTelling = per('status');
-  const statussen = STATUSSEN.map(s => ({label:s, value:statusTelling[s]||0, kleur:STATUS_KLEUR[s]||'#B4B2A9'}));
-  const klassen = ['A','B','C'].map(k => ({label:'Klasse '+k, value:LEADS.filter(l=>l.klasse===k).length,
-    kleur:{A:'#1E9E6A',B:'#EF9F27',C:'#B4B2A9'}[k]}));
-  const kleurVanAm = am => (AMS.find(a=>a.naam===am)||{}).kleur || '#B4B2A9';
-  const ams = [{label:'Niet geclaimd', value:LEADS.filter(l=>!l.am).length, kleur:'#D3D1C7'}]
-    .concat(AMS.map(a => ({label:a.naam, value:LEADS.filter(l=>l.am===a.naam).length, kleur:a.kleur})));
-  return `<div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Verdeling</h3>
-    <div style="display:flex;gap:36px;flex-wrap:wrap">
-      ${donut(statussen,'status')}${donut(klassen,'klasse')}${donut(ams,'per AM')}
-    </div></div>`;
-}
 const PRESENTJE_PALET = ['#5B63C7','#1D9E75','#EF9F27','#E24B4A','#97C459','#BA7517','#0B9455','#8A90A6'];
+let rapportPeriode = null;  // null = alles; anders {vanaf:'jjjj-mm-dd'}
+
+function periodeKnoppen() {
+  const opties = [['30 dagen',30], ['90 dagen',90], ['12 maanden',365], ['Alles', null]];
+  return `<div class="paneel" style="max-width:900px;display:flex;gap:8px;align-items:center">
+    <b style="margin-right:6px">Periode:</b>
+    ${opties.map(([label,dagen]) => {
+      const vanaf = dagen ? new Date(Date.now()-dagen*864e5).toISOString().slice(0,10) : null;
+      const actief = (rapportPeriode?.vanaf||null) === vanaf;
+      return `<button class="knop ${actief?'':'secundair'}" style="padding:6px 14px"
+        onclick="rapportPeriode=${vanaf?`{vanaf:'${vanaf}'}`:'null'};laadRapport()">${label}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function exportRapportCsv() {
+  const r = window._rapportData;
+  if (!r) return;
+  const regels = [['Sectie','Label','Waarde']];
+  Object.entries(r.verdeling.status).forEach(([k,v]) => regels.push(['Status', k, v]));
+  Object.entries(r.verdeling.klasse).forEach(([k,v]) => regels.push(['Klasse', k, v]));
+  Object.entries(r.verdeling.am).forEach(([k,v]) => regels.push(['AM', k, v]));
+  r.provincies.forEach(p => regels.push(['Provincie', p.provincie, p.leads]));
+  r.cohorten.forEach(c => regels.push(['Cohort '+c.maand, 'Leads/Benaderd/In gesprek/Aanstelling/Afgesloten',
+    `${c.leads}/${c.benaderd}/${c.in_gesprek}/${c.aanstelling}/${c.afgesloten}`]));
+  const csv = regels.map(rij => rij.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rapport-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 async function laadRapport() {
-  const r = await api('/api/conversie');
+  const qs = rapportPeriode ? '?' + new URLSearchParams(rapportPeriode) : '';
+  const [r, relStatus, aandacht] = await Promise.all([
+    api('/api/conversie' + qs), api('/api/relaties/status'), api('/api/aandacht')
+  ]);
   const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '—';
   const pj = r.presentjes;
   const soorten = Object.entries(pj.per_soort).map(([label,value],i) =>
-    ({label, value, kleur:PRESENTJE_PALET[i % PRESENTJE_PALET.length]}));
+    ({label, value, kleur:PRESENTJE_PALET[i % PRESENTJE_PALET.length],
+      onclick:`naarLeadsMetFilter({extra:{label:'Presentje: ${label}', test:l=>l.presentje_type==='${label}'}})`}));
   const pjMaandRijen = pj.per_maand.map(m => `<tr><td>${m.maand}</td><td>${m.aantal}</td></tr>`).join('');
   const pjEffectRijen = pj.effect.map(e => `<tr><td>${e.label}</td><td>${e.leads}</td>
     <td>${e.in_gesprek} <span style="color:var(--dim)">(${pct(e.in_gesprek,e.leads)})</span></td>
     <td>${e.aanstelling}</td><td><b>${e.conversie_pct}%</b></td></tr>`).join('');
-  const cohortRijen = r.cohorten.map(c => `<tr><td>${c.maand.split('-').reverse().join('-')}</td><td>${c.leads}</td>
+  const cohortRijen = r.cohorten.map(c => `<tr>
+    <td><a href="#" onclick="naarLeadsMetFilter({extra:{label:'Ingestroomd in ${c.maand}', test:l=>String(l.aangemaakt).slice(0,7)==='${c.maand}'}});return false">${c.maand.split('-').reverse().join('-')}</a></td>
+    <td>${c.leads}</td>
     <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
     <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
     <td>${c.aanstelling} <span style="color:var(--dim)">(${pct(c.aanstelling,c.leads)})</span></td>
     <td>${c.afgesloten}</td></tr>`).join('');
   const klasseRijen = r.klassen.map(k => `<tr><td><span class="badge k${k.klasse}">${k.klasse}</span></td>
-    <td>${k.leads}</td><td>${k.benaderd}</td><td>${k.aanstelling}</td><td><b>${k.conversie_pct}%</b></td></tr>`).join('');
+    <td><a href="#" onclick="naarLeadsMetFilter({klasse:'${k.klasse}'});return false">${k.leads}</a></td>
+    <td>${k.benaderd}</td>
+    <td><a href="#" onclick="naarLeadsMetFilter({klasse:'${k.klasse}',status:'Aanstelling'});return false">${k.aanstelling}</a></td>
+    <td><b>${k.conversie_pct}%</b></td></tr>`).join('');
+  const provincieRijen = r.provincies.map(p => `<tr>
+    <td><a href="#" onclick="naarLeadsMetFilter({provincie:'${p.provincie==='Onbekend'?'':p.provincie}'});return false">${p.provincie}</a></td>
+    <td>${p.leads}</td>
+    <td><a href="#" onclick="naarLeadsMetFilter({provincie:'${p.provincie==='Onbekend'?'':p.provincie}',status:'Aanstelling'});return false">${p.aanstelling}</a></td>
+    <td><b>${p.conversie_pct}%</b></td></tr>`).join('');
   const d = r.doorlooptijd;
+
+  const statusDonut = donut(Object.entries(r.verdeling.status).map(([label,value]) =>
+    ({label, value, kleur:STATUS_KLEUR[label]||'#B4B2A9', onclick:`naarLeadsMetFilter({status:'${label}'})`})), 'status');
+  const klasseDonut = donut(Object.entries(r.verdeling.klasse).map(([label,value]) =>
+    ({label:'Klasse '+label, value, kleur:{A:'#1E9E6A',B:'#EF9F27',C:'#B4B2A9'}[label]||'#B4B2A9',
+      onclick:`naarLeadsMetFilter({klasse:'${label}'})`})), 'klasse');
+  const amDonut = donut(Object.entries(r.verdeling.am).map(([naam,value]) => ({
+    label: naam, value,
+    kleur: naam==='Niet geclaimd' ? '#D3D1C7' : ((AMS.find(a=>a.naam===naam)||{}).kleur || '#B4B2A9'),
+    onclick: naam==='Niet geclaimd'
+      ? `naarLeadsMetFilter({extra:{label:'Niet geclaimd', test:l=>!l.am}})`
+      : `naarLeadsMetFilter({am:'${naam}'})`,
+  })), 'per AM');
+
   $('#rapportInhoud').innerHTML = `
-    ${tekenDonuts()}
+    ${periodeKnoppen()}
+    <div class="paneel" style="max-width:900px;display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Verdeling</h3>
+      <div style="display:flex;gap:8px">
+        <button class="knop secundair" onclick="exportRapportCsv()">CSV export</button>
+        <button class="knop secundair" onclick="window.print()">Printen</button>
+      </div>
+    </div>
+    <div class="paneel" style="max-width:900px">
+      <div style="display:flex;gap:36px;flex-wrap:wrap">${statusDonut}${klasseDonut}${amDonut}</div>
+    </div>
     <div class="kaarten" style="margin:0">
       <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
       <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
@@ -1084,11 +1146,25 @@ async function laadRapport() {
     <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
       <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
       <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd" betekent: ooit de status Benaderd of verder bereikt.</p></div>
+      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; "Leads" en "Aanstelling" wel.</p></div>
     <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
       <table style="box-shadow:none"><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
-      <tbody>${klasseRijen}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Converteren A-leads structureel beter dan B? Dan klopt de scoreweging; zo niet, dan stellen we die bij.</p></div>
+      <tbody>${klasseRijen}</tbody></table></div>
+    <div class="paneel" style="max-width:900px"><h3>Conversie per provincie</h3>
+      <table style="box-shadow:none"><thead><tr><th>Provincie</th><th>Leads</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+      <tbody>${provincieRijen || '<tr><td colspan="4" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table></div>
+    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Relatiecheck</h3>
+      <div class="kaarten" style="margin:0">
+        <div class="stat"><a href="#" onclick="naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}});return false"><b>${relStatus.per_uitkomst.mogelijk}</b></a><span>nog te controleren</span></div>
+        <div class="stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
+        <div class="stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
+        <div class="stat"><b>${relStatus.relaties}</b><span>relaties in de lijst (${Object.entries(relStatus.per_bron).map(([b,n])=>`${b}: ${n}`).join(' · ')})</span></div>
+      </div></div>
+    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Aandacht nodig (${aandacht.length})</h3>
+      ${aandacht.length ? aandacht.slice(0,25).map(l => `<div style="padding:7px 0;border-bottom:1px solid #F2F4F7;display:flex;justify-content:space-between">
+        <a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
+        <span style="color:var(--amber)">${l.reden}</span></div>`).join('')
+      : '<p style="color:var(--dim)">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
     <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Presentjes 🎁</h3>
       <div class="kaarten" style="margin:0 0 18px">
         <div class="stat"><b>${pj.verstuurd}</b><span>presentjes verstuurd</span></div>
@@ -1104,7 +1180,8 @@ async function laadRapport() {
       <h4>Effect op conversie</h4>
       <table style="box-shadow:none"><thead><tr><th></th><th>Geclaimde leads</th><th>In gesprek</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
       <tbody>${pjEffectRijen}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Vergelijking over geclaimde leads: bereiken kantoren die een presentje kregen vaker "In gesprek" of "Aanstelling" dan kantoren zonder presentje?</p></div>`;
+      <p style="font-size:12.5px;color:var(--dim)">Vergelijking over geclaimde leads: bereiken kantoren die een presentje kregen vaker "In gesprek" of "Aanstelling" dan kantoren zonder presentje? "In gesprek" is niet klikbaar (ooit-bereikt-cijfer).</p></div>`;
+  window._rapportData = r;  // voor CSV-export
 }
 
 // ---- kaart ----
