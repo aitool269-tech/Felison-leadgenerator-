@@ -1321,9 +1321,12 @@ def relaties_status():
     per_bron = {b: 0 for b in RELATIE_BRONNEN}
     for r in con.execute("SELECT bron, COUNT(*) n FROM relaties GROUP BY bron"):
         per_bron[r["bron"] or "?"] = r["n"]
-    open_checks = con.execute("SELECT COUNT(*) n FROM leads WHERE relatie_match='mogelijk'").fetchone()["n"]
+    per_uitkomst = {"mogelijk": 0, "bevestigd": 0, "geen": 0}
+    for r in con.execute("SELECT relatie_match, COUNT(*) n FROM leads WHERE relatie_match IS NOT NULL GROUP BY relatie_match"):
+        per_uitkomst[r["relatie_match"]] = r["n"]
     con.close()
-    return {"per_bron": per_bron, "relaties": sum(per_bron.values()), "te_controleren": open_checks}
+    return {"per_bron": per_bron, "relaties": sum(per_bron.values()),
+            "te_controleren": per_uitkomst["mogelijk"], "per_uitkomst": per_uitkomst}
 
 
 class RelatiecheckBody(BaseModel):

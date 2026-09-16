@@ -46,3 +46,13 @@ def test_relaties_import_herkent_tussenpersoon_kolom_en_negeert_overige_kolommen
     lead = client.get("/api/leads").json()[0]
     assert lead["id"] == lead_id
     assert lead["relatie_match"] == "mogelijk"
+
+
+def test_relaties_status_telt_uitkomsten_per_soort(client, con_factory):
+    maak_lead(con_factory, naam="A", relatie_match="mogelijk", vergunningnummer="X1")
+    maak_lead(con_factory, naam="B", relatie_match="bevestigd", vergunningnummer="X2")
+    maak_lead(con_factory, naam="C", relatie_match="geen", vergunningnummer="X3")
+    maak_lead(con_factory, naam="D", vergunningnummer="X4")  # relatie_match=NULL, telt nergens mee
+    r = client.get("/api/relaties/status").json()
+    assert r["per_uitkomst"] == {"mogelijk": 1, "bevestigd": 1, "geen": 1}
+    assert r["te_controleren"] == 1
