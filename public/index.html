@@ -723,6 +723,8 @@ window.openLead = async id => {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
         <div><label>Contactpersoon</label>
           <input type="text" id="dContactpersoon" value="${l.contactpersoon||''}" placeholder="Naam" style="width:100%"></div>
+        <div><label>Functie contactpersoon</label>
+          <input type="text" id="dContactpersoonFunctie" value="${l.contactpersoon_functie||''}" placeholder="bijv. Directeur" style="width:100%"></div>
         <div><label>Telefoon</label>
           <input type="text" id="dTelefoon" value="${l.telefoon||''}" placeholder="06…" style="width:100%"></div>
         <div><label>E-mail</label>
@@ -811,7 +813,8 @@ window.openLead = async id => {
   $('#dOpslaan').onclick = async () => {
     const status = $('#dStatus').value, notitie = $('#dNotitie').value, web = $('#dWebsite').value;
     const json = b => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-    const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(), contactpersoon:$('#dContactpersoon').value.trim()};
+    const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(),
+      contactpersoon:$('#dContactpersoon').value.trim(), contactpersoon_functie:$('#dContactpersoonFunctie').value.trim()};
     const STATUSSEN_CONTACT_WAARSCHUWING = ['Benaderd','In gesprek','Aanstelling'];
     if (status !== l.status && STATUSSEN_CONTACT_WAARSCHUWING.includes(status) && !g.telefoon && !g.email && !g.contactpersoon)
       alert('Contactgegevens zijn niet ingevuld en kunnen waardevol zijn.');
@@ -823,7 +826,7 @@ window.openLead = async id => {
       await api(`/api/leads/${id}/status`, json({status, notitie, am}));
     if (web !== (l.website||''))
       await api(`/api/leads/${id}/website`, json({website:web}));
-    if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||''))
+    if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||'') || g.contactpersoon_functie!==(l.contactpersoon_functie||''))
       await api(`/api/leads/${id}/gegevens`, json(g));
     const v = {datum:$('#dVervolgDatum').value, actie:$('#dVervolgActie').value.trim()};
     if (v.datum!==(l.vervolg_datum||'') || v.actie!==(l.vervolg_actie||''))
