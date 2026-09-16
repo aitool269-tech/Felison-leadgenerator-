@@ -33,8 +33,7 @@
         padding:10px 14px;border-right:0;border-bottom:1px solid var(--rand);
         padding-top:calc(10px + env(safe-area-inset-top))}
   .logo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:0}
-  .woordmerk{display:inline-flex;align-items:baseline;font-weight:800;font-size:21px;line-height:1;letter-spacing:-1px;color:#0A0AA0;font-family:'Manrope',sans-serif}
-  .woordmerk svg{height:.95em;width:auto;margin:0 1px;align-self:flex-end;fill:#0A0AA0}
+  .logo-felison{height:19px;width:auto;display:block}
   .logo .sublabel{font-size:10.5px;letter-spacing:.16em;font-weight:700;color:#98A2B3;text-transform:uppercase}
   .bel{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--rand);background:#fff;color:var(--dim);
        cursor:pointer;box-shadow:var(--schaduw);display:flex;align-items:center;justify-content:center;flex:none;margin:4px 4px 0 0}
@@ -186,7 +185,7 @@
 <aside>
   <div style="display:flex;flex:1;justify-content:space-between;align-items:flex-start;position:relative">
     <div class="logo">
-      <span class="woordmerk">fel<svg viewBox="0 0 11 30" aria-hidden="true"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
+      <img class="logo-felison" src="/logo-felison.svg" alt="Felison">
       <span class="sublabel">Leadgenerator</span>
     </div>
     <div style="display:flex">
@@ -396,7 +395,7 @@
 
 <div id="loginOverlay" style="display:none;position:fixed;inset:0;background:#EFF1F4;z-index:99;align-items:center;justify-content:center">
   <div style="background:#fff;border:1px solid #EAECF0;border-radius:16px;padding:34px;width:360px;max-width:90vw;box-shadow:0 12px 32px rgba(16,24,40,.10)">
-    <span class="woordmerk" style="font-size:32px">fel<svg viewBox="0 0 11 30" aria-hidden="true" style="height:.95em;width:auto;margin:0 1px;fill:#0A0AA0"><polygon points="1.5,0 11,4.5 3.5,10.5"/><rect x="2.6" y="13.5" width="5.2" height="16.5" rx="2.4"/></svg>son</span>
+    <img class="logo-felison" style="height:30px" src="/logo-felison.svg" alt="Felison">
     <h3 style="margin:10px 0 6px;font-size:16px">Leadgenerator Felison</h3>
     <div id="loginDemoBadge" hidden style="background:var(--lavbg);color:var(--lavd);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin:0 0 10px">🎬 Dit is de demo-omgeving — log in met code: demo</div>
     <p style="color:var(--dim);font-size:13px;margin:0 0 14px">Voer de toegangscode in om het leaddashboard te openen.</p>
