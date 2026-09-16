@@ -377,10 +377,15 @@ def aandacht():
     for l in leads:
         l = dict(l)
         vervolg = norm_datum(l.get("vervolg_datum"))
-        if vervolg and date.fromisoformat(vervolg) < vandaag:
-            l["reden"] = f"Vervolgactie verlopen op {vervolg}"
-            out.append((0, vervolg, l))
-            continue
+        if vervolg:
+            try:
+                verlopen = date.fromisoformat(vervolg) < vandaag
+            except ValueError:
+                verlopen = False
+            if verlopen:
+                l["reden"] = f"Vervolgactie verlopen op {vervolg}"
+                out.append((0, vervolg, l))
+                continue
         laatste = laatste_activiteit.get(l["id"], str(l["aangemaakt"]))[:10]
         try:
             dagen = (vandaag - date.fromisoformat(laatste)).days
