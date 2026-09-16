@@ -34,6 +34,9 @@ from database import DB, init_db, PERSISTENT  # noqa: E402
 STATUSSEN = ["Nieuw", "Opnieuw binnen", "Geclaimd", "Benaderd", "In gesprek", "Aanstelling",
              "Bestaande relatie", "Afgewezen", "Geen interesse"]
 LOPEND = ("Geclaimd", "Benaderd", "In gesprek")
+# Deze statussen sluiten een lead feitelijk af; wie dat doet moet vastliggen
+# voor latere navraag, dus is een AM hier verplicht (i.t.t. de overige statussen).
+STATUSSEN_AM_VERPLICHT = ("Geen interesse", "Afgewezen", "Bestaande relatie")
 ACCESS_CODE = os.environ.get("APP_ACCESS_CODE")
 SERPER_KEY = os.environ.get("SERPER_API_KEY")
 CRON_SECRET = os.environ.get("CRON_SECRET")
@@ -93,6 +96,23 @@ def norm_naam(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+# Rechtsvorm-/generieke woorden die bij relatiematching genegeerd worden, zodat
+# bv. "Kantoor B.V." en "Kantoor Adviesgroep B.V." als dezelfde relatie herkend
+# worden. Alleen gebruikt voor relatiematching (norm_naam_relatie), niet voor
+# de AFM-registermatching (norm_naam) — die twee blijven bewust gescheiden.
+GENERIEKE_NAAMWOORDEN = {"bv", "nv", "vof", "holding", "groep", "adviesgroep",
+                          "verzekeringen", "assurantien", "assurantie"}
+
+
+def norm_naam_relatie(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
+    # Punten eerst weg (i.p.v. naar spatie) zodat afkortingen als "B.V." als
+    # één woord "bv" overblijven in plaats van los "b" en "v".
+    s = s.lower().replace(".", "")
+    woorden = re.sub(r"[^a-z0-9]+", " ", s).split()
+    return "".join(w for w in woorden if w not in GENERIEKE_NAAMWOORDEN)
+
+
 def lees_instelling(con, sleutel):
     r = con.execute("SELECT waarde FROM instellingen WHERE sleutel=?", (sleutel,)).fetchone()
     return (r["waarde"] or "").strip() if r and r["waarde"] else None
@@ -115,7 +135,7 @@ def match_relaties(con):
         return 0
     nieuw = 0
     for l in list(con.execute("SELECT id, naam FROM leads WHERE relatie_match IS NULL")):
-        rel = relaties.get(norm_naam(l["naam"]))
+        rel = relaties.get(norm_naam_relatie(l["naam"]))
         if rel:
             con.execute("UPDATE leads SET relatie_match='mogelijk', relatie_naam=?, relatie_bron=? WHERE id=?",
                         (rel["naam"], " + ".join(sorted(set(rel["bronnen"]))), l["id"]))
@@ -415,6 +435,8 @@ class StatusBody(BaseModel):
 def zet_status(lead_id: int, body: StatusBody):
     if body.status not in STATUSSEN:
         raise HTTPException(400, f"Ongeldige status; kies uit {STATUSSEN}")
+    if body.status in STATUSSEN_AM_VERPLICHT and not (body.am or "").strip():
+        raise HTTPException(400, f"Kies een accountmanager om de status naar '{body.status}' te wijzigen")
     con = DB()
     lead = con.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
     if not lead:
@@ -1237,7 +1259,7 @@ async def relaties_import(bestand: UploadFile = File(...), bron: str = "Felison"
     kop = [str(c or "").strip().lower() for c in rijen[0]]
     start = 0
     for i, k in enumerate(kop):
-        if k in ("naam", "bedrijfsnaam", "relatie", "kantoor", "statutaire naam"):
+        if k in ("naam", "bedrijfsnaam", "relatie", "kantoor", "statutaire naam", "tussenpersoon"):
             kolom, start = i, 1
             break
     else:
@@ -1251,7 +1273,7 @@ async def relaties_import(bestand: UploadFile = File(...), bron: str = "Felison"
         if len(r) <= kolom or not r[kolom]:
             continue
         naam = str(r[kolom]).strip()
-        nn = norm_naam(naam)
+        nn = norm_naam_relatie(naam)
         if not nn or nn in gezien:
             continue
         gezien.add(nn)

@@ -744,8 +744,12 @@ window.openLead = async id => {
     const STATUSSEN_CONTACT_WAARSCHUWING = ['Benaderd','In gesprek','Aanstelling'];
     if (status !== l.status && STATUSSEN_CONTACT_WAARSCHUWING.includes(status) && !g.telefoon && !g.email && !g.contactpersoon)
       alert('Contactgegevens zijn niet ingevuld en kunnen waardevol zijn.');
+    const STATUSSEN_AM_VERPLICHT = ['Geen interesse','Afgewezen','Bestaande relatie'];
+    const am = $('#dAm').value || l.am;
+    if (status !== l.status && STATUSSEN_AM_VERPLICHT.includes(status) && !am)
+      return alert(`Kies eerst een accountmanager om de status naar '${status}' te wijzigen.`);
     if (status !== l.status || notitie)
-      await api(`/api/leads/${id}/status`, json({status, notitie, am:$('#dAm').value||l.am}));
+      await api(`/api/leads/${id}/status`, json({status, notitie, am}));
     if (web !== (l.website||''))
       await api(`/api/leads/${id}/website`, json({website:web}));
     if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||''))

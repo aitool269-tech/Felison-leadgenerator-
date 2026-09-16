@@ -92,3 +92,24 @@ def test_status_wijziging_wordt_altijd_gelogd(client, con_factory):
     logs = list(con.execute("SELECT * FROM status_log WHERE lead_id=?", (lead_id,)))
     con.close()
     assert any(l["status"] == "Benaderd" for l in logs)
+
+
+def test_status_afsluitende_status_zonder_am_geeft_400(client, con_factory):
+    lead_id = maak_lead(con_factory, status="Benaderd")
+    for status in ("Geen interesse", "Afgewezen", "Bestaande relatie"):
+        r = client.post(f"/api/leads/{lead_id}/status", json={"status": status})
+        assert r.status_code == 400, status
+
+
+def test_status_afsluitende_status_met_am_slaagt(client, con_factory):
+    lead_id = maak_lead(con_factory, status="Benaderd")
+    r = client.post(f"/api/leads/{lead_id}/status", json={"status": "Afgewezen", "am": "Anna"})
+    assert r.status_code == 200
+    lead = client.get("/api/leads").json()[0]
+    assert lead["status"] == "Afgewezen"
+
+
+def test_status_niet_afsluitende_status_zonder_am_slaagt(client, con_factory):
+    lead_id = maak_lead(con_factory, status="Nieuw")
+    r = client.post(f"/api/leads/{lead_id}/status", json={"status": "Benaderd"})
+    assert r.status_code == 200

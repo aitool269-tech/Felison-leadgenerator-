@@ -1,4 +1,4 @@
-from app import clean_plaats, norm_naam, parse_adres
+from app import clean_plaats, norm_naam, norm_naam_relatie, parse_adres
 
 
 def test_parse_adres_standaardformaat():
@@ -34,6 +34,20 @@ def test_norm_naam_verwijdert_diakrieten_en_leestekens():
 def test_norm_naam_lege_input():
     assert norm_naam("") == ""
     assert norm_naam(None) == ""
+
+
+def test_norm_naam_relatie_negeert_rechtsvorm_en_generieke_woorden():
+    assert norm_naam_relatie("Kantoor B.V.") == norm_naam_relatie("Kantoor Adviesgroep B.V.")
+    assert norm_naam_relatie("Kantoor B.V.") == "kantoor"
+
+
+def test_norm_naam_relatie_verschillende_kantoren_blijven_verschillend():
+    assert norm_naam_relatie("Kantoor Jansen B.V.") != norm_naam_relatie("Kantoor Pietersen B.V.")
+
+
+def test_norm_naam_relatie_lege_input():
+    assert norm_naam_relatie("") == ""
+    assert norm_naam_relatie(None) == ""
 
 
 def test_clean_plaats_strip_gemeente_prefix():
