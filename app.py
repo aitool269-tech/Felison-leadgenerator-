@@ -960,11 +960,16 @@ def export_excel(status: str = None, klasse: str = None, provincie: str = None, 
 
 
 @app.get("/api/conversie")
-def conversie():
+def conversie(vanaf: str = None, tot: str = None):
     """Funnel per maandcohort, conversie per scoreklasse en doorlooptijden."""
     con = DB()
-    leads = list(con.execute(
-        "SELECT id, klasse, status, aangemaakt, am, presentje_datum, presentje_type FROM leads"))
+    q = "SELECT id, klasse, status, provincie, aangemaakt, am, presentje_datum, presentje_type FROM leads WHERE 1=1"
+    p = []
+    if vanaf:
+        q += " AND aangemaakt >= ?"; p.append(vanaf)
+    if tot:
+        q += " AND aangemaakt <= ?"; p.append(tot + " 23:59:59")
+    leads = list(con.execute(q, p))
     log = list(con.execute("SELECT lead_id, status, ts FROM status_log"))
     con.close()
 
@@ -1040,6 +1045,28 @@ def conversie():
                    effect_rij("Zonder presentje", [l for l in geclaimd if not l["presentje_datum"]])],
     }
 
+    verdeling_status = {}
+    for l in leads:
+        verdeling_status[l["status"]] = verdeling_status.get(l["status"], 0) + 1
+    verdeling_klasse = {}
+    for l in leads:
+        k = l["klasse"] or "?"
+        verdeling_klasse[k] = verdeling_klasse.get(k, 0) + 1
+    verdeling_am = {"Niet geclaimd": 0}
+    for l in leads:
+        sleutel = l["am"] or "Niet geclaimd"
+        verdeling_am[sleutel] = verdeling_am.get(sleutel, 0) + 1
+
+    provincies = {}
+    for l in leads:
+        prov = l["provincie"] or "Onbekend"
+        pr = provincies.setdefault(prov, {"provincie": prov, "leads": 0, "aanstelling": 0})
+        pr["leads"] += 1
+        if bereikt(l, "Aanstelling"):
+            pr["aanstelling"] += 1
+    for pr in provincies.values():
+        pr["conversie_pct"] = round(100 * pr["aanstelling"] / pr["leads"], 1) if pr["leads"] else 0
+
     return {
         "cohorten": sorted(cohorten.values(), key=lambda c: c["maand"]),
         "klassen": sorted(klassen.values(), key=lambda k: k["klasse"]),
@@ -1049,6 +1076,8 @@ def conversie():
             "gem_dagen_tot_aanstelling": round(sum(tot_aanstelling) / len(tot_aanstelling), 1) if tot_aanstelling else None,
             "aantal_aanstellingen": len(tot_aanstelling),
         },
+        "verdeling": {"status": verdeling_status, "klasse": verdeling_klasse, "am": verdeling_am},
+        "provincies": sorted(provincies.values(), key=lambda p: -p["leads"]),
     }
 
 
