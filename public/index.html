@@ -687,12 +687,14 @@ window.openLead = async id => {
     <div style="font-size:13px;color:var(--dim)">
       ${l.handelsnamen && l.handelsnamen!==l.naam ? 'h/o '+l.handelsnamen+'<br>' : ''}
       ${[l.adres,l.postcode,l.plaats].filter(Boolean).join(', ')||'Adres onbekend'} · ${l.provincie||'provincie onbekend'}<br>
-      KvK ${l.kvk||'?'} · AFM ${l.vergunningnummer} · vergunning per ${fmtDatum(l.begindatum_dienst)}<br>
-      Score <b>${l.klasse} (${l.score})</b>: ${l.score_uitleg||''}
-      ${l.website_uitleg?`<br>Websitescan (+${l.website_score||0}): ${l.website_uitleg}`:''}
+      KvK ${l.kvk||'?'} · AFM ${l.vergunningnummer} · vergunning per ${fmtDatum(l.begindatum_dienst)}
       ${l.beperkingen?`<br>⚠ <i>${l.beperkingen}</i>`:''}
       ${l.presentje_datum?`<br>🎁 <b>${l.presentje_type}</b> verstuurd op ${fmtDatum(l.presentje_datum)}`:''}
       <br>Binnengekomen in AFM-bestanden: <b>${historie.length}×</b> (${historie.map(h=>fmtDatum(h.ts)).join(' · ')})
+    </div>
+    <div style="margin-top:var(--sp-2)">
+      <span class="badge k${l.klasse}" title="${(l.score_uitleg||'').replace(/"/g,'&quot;')}">Score ${l.klasse} · ${l.score}</span>
+      ${l.website_uitleg?` <span class="badge" style="background:var(--grijsbg);color:var(--grijs)" title="${l.website_uitleg.replace(/"/g,'&quot;')}">Website +${l.website_score||0}</span>`:''}
     </div>
     ${l.relatie_match==='mogelijk'?`
     <div style="background:var(--amberbg);border-radius:12px;padding:12px 14px;margin-top:12px">
