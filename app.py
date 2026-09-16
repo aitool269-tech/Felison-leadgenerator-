@@ -1086,10 +1086,15 @@ def conversie(vanaf: str = None, tot: str = None):
                    effect_rij("Zonder presentje", [l for l in geclaimd if not l["presentje_datum"]])],
     }
 
-    verdeling_status = {}
+    # Pre-seed in canonische volgorde zodat de donut-grafieken een vaste,
+    # voorspelbare volgorde tonen i.p.v. DB-rijvolgorde (donut() filtert
+    # nul-waarden er toch weer uit).
+    verdeling_status = {s: 0 for s in STATUSSEN}
     for l in leads:
         verdeling_status[l["status"]] = verdeling_status.get(l["status"], 0) + 1
-    verdeling_klasse = {}
+    verdeling_klasse = {k: 0 for k in ("A", "B", "C")}
+    if any(not l["klasse"] for l in leads):
+        verdeling_klasse["?"] = 0
     for l in leads:
         k = l["klasse"] or "?"
         verdeling_klasse[k] = verdeling_klasse.get(k, 0) + 1

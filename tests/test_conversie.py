@@ -49,3 +49,24 @@ def test_conversie_periodefilter_sluit_leads_buiten_bereik_uit(client, con_facto
     assert r["verdeling"]["status"].get("Nieuw", 0) == 1  # alleen de lead uit 2025 telt mee
     totaal = sum(r["verdeling"]["status"].values())
     assert totaal == 1
+
+
+def test_conversie_periodefilter_tot_sluit_leads_na_bereik_uit(client, con_factory):
+    maak_lead(con_factory, naam="Voor", vergunningnummer="X1", aangemaakt="2025-01-15")
+    maak_lead(con_factory, naam="Na", vergunningnummer="X2", aangemaakt="2025-06-15")
+    r = client.get("/api/conversie", params={"tot": "2025-02-01"}).json()
+    assert sum(r["verdeling"]["status"].values()) == 1  # alleen de lead vóór 2025-02-01 telt mee
+
+
+def test_conversie_periodefilter_tot_is_inclusief_de_einddatum(client, con_factory):
+    maak_lead(con_factory, naam="OpGrens", vergunningnummer="X1", aangemaakt="2025-02-01 10:00:00")
+    r = client.get("/api/conversie", params={"tot": "2025-02-01"}).json()
+    assert sum(r["verdeling"]["status"].values()) == 1  # 23:59:59 wordt aan 'tot' toegevoegd
+
+
+def test_conversie_periodefilter_vanaf_en_tot_combineren(client, con_factory):
+    maak_lead(con_factory, naam="Voor", vergunningnummer="X1", aangemaakt="2024-12-01")
+    maak_lead(con_factory, naam="In", vergunningnummer="X2", aangemaakt="2025-01-15")
+    maak_lead(con_factory, naam="Na", vergunningnummer="X3", aangemaakt="2025-03-01")
+    r = client.get("/api/conversie", params={"vanaf": "2025-01-01", "tot": "2025-02-01"}).json()
+    assert sum(r["verdeling"]["status"].values()) == 1  # alleen "In" valt binnen het bereik
