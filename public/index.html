@@ -118,6 +118,12 @@
   button.knop.secundair:hover{background:#F9FAFB;border-color:#D0D5DD}
   button.knop:disabled{opacity:.5;cursor:default}
   #kaart{height:560px;border-radius:14px;border:1px solid var(--rand);box-shadow:var(--schaduw)}
+  .rapport-sectie{margin-top:var(--sp-6)}
+  .rapport-sectie:first-child{margin-top:0}
+  .rapport-sectie-titel{font-size:var(--fs-sm);font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--dim);margin:0 0 var(--sp-3)}
+  .rapport-sectie .paneel + .paneel{margin-top:var(--sp-4)}
+  .rapport-sectie table{box-shadow:none}
   .paneel{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:22px;max-width:660px;box-shadow:var(--schaduw)}
   .paneel h3,.paneel h4{letter-spacing:-.2px}
   .dropzone{border:1.5px dashed #D0D5DD;border-radius:12px;padding:20px;text-align:center;color:var(--dim);margin:8px 0;cursor:pointer;background:#FCFCFD;font-weight:500}
@@ -1172,60 +1178,69 @@ async function laadRapport() {
   })), 'per AM');
 
   $('#rapportInhoud').innerHTML = `
-    ${periodeKnoppen()}
-    <div class="paneel" style="max-width:900px;display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">Verdeling</h3>
-      <div style="display:flex;gap:8px">
-        <button class="knop secundair" onclick="exportRapportCsv()">CSV export</button>
-        <button class="knop secundair" onclick="window.print()">Printen</button>
-      </div>
-    </div>
-    <div class="paneel" style="max-width:900px">
-      <div style="display:flex;gap:36px;flex-wrap:wrap">${statusDonut}${klasseDonut}${amDonut}</div>
-    </div>
-    <div class="kaarten" style="margin:0">
-      <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
-      <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
-      <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen totaal</span></div>
-    </div>
-    <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
-      <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
-      <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek"/"Aanstelling" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; alleen "Leads" is klikbaar.</p></div>
-    <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
-      <table style="box-shadow:none"><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
-      <tbody>${klasseRijen}</tbody></table></div>
-    <div class="paneel" style="max-width:900px"><h3>Conversie per provincie</h3>
-      <table style="box-shadow:none"><thead><tr><th>Provincie</th><th>Leads</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
-      <tbody>${provincieRijen || '<tr><td colspan="4" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table></div>
-    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Relatiecheck</h3>
-      <div class="kaarten" style="margin:0">
-        <div class="stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
-        <div class="stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
-        <div class="stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
-        <div class="stat"><b>${relStatus.relaties}</b><span>relaties in de lijst (${Object.entries(relStatus.per_bron).map(([b,n])=>`${b}: ${n}`).join(' · ')})</span></div>
-      </div></div>
-    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Aandacht nodig (${aandacht.length})</h3>
-      ${aandacht.length ? aandacht.slice(0,25).map(l => `<div style="padding:7px 0;border-bottom:1px solid #F2F4F7;display:flex;justify-content:space-between">
-        <a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
-        <span style="color:var(--amber)">${l.reden}</span></div>`).join('')
-      : '<p style="color:var(--dim)">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
-    <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Presentjes 🎁</h3>
-      <div class="kaarten" style="margin:0 0 18px">
-        <div class="stat"><b>${pj.verstuurd}</b><span>presentjes verstuurd</span></div>
-        <div class="stat"><b>${pj.openstaand}</b><span>geclaimd, nog geen presentje</span></div>
-      </div>
-      <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start">
-        ${donut(soorten,'per soort')}
-        <div style="flex:1;min-width:220px">
-          <table style="box-shadow:none"><thead><tr><th>Maand</th><th>Verstuurd</th></tr></thead>
-          <tbody>${pjMaandRijen || '<tr><td colspan="2" style="color:var(--dim)">Nog geen presentjes verstuurd.</td></tr>'}</tbody></table>
+    <div class="rapport-sectie">
+      <h2 class="rapport-sectie-titel">Overzicht</h2>
+      ${periodeKnoppen()}
+      <div class="paneel" style="max-width:900px;display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Verdeling</h3>
+        <div style="display:flex;gap:8px">
+          <button class="knop secundair" onclick="exportRapportCsv()">CSV export</button>
+          <button class="knop secundair" onclick="window.print()">Printen</button>
         </div>
       </div>
-      <h4>Effect op conversie</h4>
-      <table style="box-shadow:none"><thead><tr><th></th><th>Geclaimde leads</th><th>In gesprek</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
-      <tbody>${pjEffectRijen}</tbody></table>
-      <p style="font-size:12.5px;color:var(--dim)">Vergelijking over geclaimde leads: bereiken kantoren die een presentje kregen vaker "In gesprek" of "Aanstelling" dan kantoren zonder presentje? "In gesprek" is niet klikbaar (ooit-bereikt-cijfer).</p></div>`;
+      <div class="paneel" style="max-width:900px">
+        <div style="display:flex;gap:36px;flex-wrap:wrap">${statusDonut}${klasseDonut}${amDonut}</div>
+      </div>
+      <div class="kaarten" style="margin:0">
+        <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
+        <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
+        <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen totaal</span></div>
+      </div>
+    </div>
+    <div class="rapport-sectie">
+      <h2 class="rapport-sectie-titel">Detailanalyse</h2>
+      <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
+        <table><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
+        <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
+        <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek"/"Aanstelling" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; alleen "Leads" is klikbaar.</p></div>
+      <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
+        <table><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+        <tbody>${klasseRijen}</tbody></table></div>
+      <div class="paneel" style="max-width:900px"><h3>Conversie per provincie</h3>
+        <table><thead><tr><th>Provincie</th><th>Leads</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+        <tbody>${provincieRijen || '<tr><td colspan="4" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table></div>
+    </div>
+    <div class="rapport-sectie">
+      <h2 class="rapport-sectie-titel">Actie &amp; signalen</h2>
+      <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Relatiecheck</h3>
+        <div class="kaarten" style="margin:0">
+          <div class="stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
+          <div class="stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
+          <div class="stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
+          <div class="stat"><b>${relStatus.relaties}</b><span>relaties in de lijst (${Object.entries(relStatus.per_bron).map(([b,n])=>`${b}: ${n}`).join(' · ')})</span></div>
+        </div></div>
+      <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Aandacht nodig (${aandacht.length})</h3>
+        ${aandacht.length ? aandacht.slice(0,25).map(l => `<div style="padding:7px 0;border-bottom:1px solid #F2F4F7;display:flex;justify-content:space-between">
+          <a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
+          <span style="color:var(--amber)">${l.reden}</span></div>`).join('')
+        : '<p style="color:var(--dim)">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
+      <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Presentjes 🎁</h3>
+        <div class="kaarten" style="margin:0 0 18px">
+          <div class="stat"><b>${pj.verstuurd}</b><span>presentjes verstuurd</span></div>
+          <div class="stat"><b>${pj.openstaand}</b><span>geclaimd, nog geen presentje</span></div>
+        </div>
+        <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start">
+          ${donut(soorten,'per soort')}
+          <div style="flex:1;min-width:220px">
+            <table><thead><tr><th>Maand</th><th>Verstuurd</th></tr></thead>
+            <tbody>${pjMaandRijen || '<tr><td colspan="2" style="color:var(--dim)">Nog geen presentjes verstuurd.</td></tr>'}</tbody></table>
+          </div>
+        </div>
+        <h4>Effect op conversie</h4>
+        <table><thead><tr><th></th><th>Geclaimde leads</th><th>In gesprek</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
+        <tbody>${pjEffectRijen}</tbody></table>
+        <p style="font-size:12.5px;color:var(--dim)">Vergelijking over geclaimde leads: bereiken kantoren die een presentje kregen vaker "In gesprek" of "Aanstelling" dan kantoren zonder presentje? "In gesprek" is niet klikbaar (ooit-bereikt-cijfer).</p></div>
+    </div>`;
   window._rapportData = r;  // voor CSV-export
 }
 
