@@ -545,12 +545,38 @@ function vulFilters() {
   zetOpties($('#fAm'), AMS.map(a=>a.naam), "Alle AM's");
 }
 
+let rapportExtraFilter = null;  // {label, test(lead)} — gezet door doorklikken vanuit Rapport
+
+function naarLeadsMetFilter({status='', klasse='', am='', provincie='', extra=null} = {}) {
+  $('#fStatus').value = status;
+  $('#fKlasse').value = klasse;
+  $('#fAm').value = am;
+  $('#fProvincie').value = provincie;
+  $('#fZoek').value = '';
+  rapportExtraFilter = extra;
+  tekenTabel();
+  tekenRapportFilterChip();
+  document.querySelector('nav button[data-tab=leads]').click();
+}
+
+function tekenRapportFilterChip() {
+  let chip = $('#rapportFilterChip');
+  if (!rapportExtraFilter) { if (chip) chip.remove(); return; }
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = 'rapportFilterChip';
+    chip.style = 'margin-bottom:10px;padding:6px 12px;background:var(--lavbg);color:var(--lavd);border-radius:8px;font-size:13px;display:flex;gap:10px;align-items:center;width:fit-content';
+    $('#tab-leads').prepend(chip);
+  }
+  chip.innerHTML = `Rapportfilter: <b>${rapportExtraFilter.label}</b> <button class="knop secundair" style="padding:2px 10px" onclick="rapportExtraFilter=null;tekenTabel();tekenRapportFilterChip()">✕ wissen</button>`;
+}
+
 function gefilterd() {
   const s=$('#fStatus').value, k=$('#fKlasse').value, p=$('#fProvincie').value, a=$('#fAm').value,
         z=$('#fZoek').value.toLowerCase();
   return LEADS.filter(l =>
     (!s || l.status===s) && (!k || l.klasse===k) && (!p || l.provincie===p) && (!a || l.am===a) &&
-    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)));
+    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)));
 }
 
 function tekenTabel() {
