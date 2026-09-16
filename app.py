@@ -58,11 +58,12 @@ if DEMO_MODE:
 # Alles wat bij de Instellingen-tab hoort (beheer, import, back-up) — bewust
 # exclusief de push-abonnement-routes, want een AM meldt zich daar ook vanuit
 # "Mijn leads" voor aan, niet alleen via Instellingen.
-# Deze twee worden ook buiten Instellingen gebruikt om de basis-UI te vullen
-# (AM-lijst, presentje-soorten bij elke paginalaad) — alleen wijzigen/verwijderen
-# vereist het instellingen-wachtwoord, gewoon bekijken (GET) niet.
-INSTELLINGEN_SCHRIJF_ALLEEN = ("/api/ams", "/api/presentje_types")
-INSTELLINGEN_PATHS = ("/api/import", "/api/onderhoud/", "/api/instellingen", "/api/relaties", "/api/backup")
+# Deze worden ook buiten Instellingen gebruikt om de basis-UI te vullen
+# (AM-lijst, presentje-soorten bij elke paginalaad; relatiecheck-tellingen in
+# het Rapport-tabblad) — alleen wijzigen/verwijderen vereist het
+# instellingen-wachtwoord, gewoon bekijken (GET) niet.
+INSTELLINGEN_SCHRIJF_ALLEEN = ("/api/ams", "/api/presentje_types", "/api/relaties")
+INSTELLINGEN_PATHS = ("/api/import", "/api/onderhoud/", "/api/instellingen", "/api/backup")
 
 
 @app.middleware("http")
