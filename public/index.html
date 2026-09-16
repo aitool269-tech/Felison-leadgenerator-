@@ -686,7 +686,11 @@ window.openLead = async id => {
   const [log, historie] = await Promise.all([api(`/api/leads/${id}/activiteit`), api(`/api/leads/${id}/historie`)]);
   const amOpties = AMS.map(a=>`<option ${a.naam===l.am?'selected':''}>${a.naam}</option>`).join('');
   $('#leadDialog').innerHTML = `
-    <h3>${l.naam}</h3>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <h3 style="margin:0">${l.naam}</h3>
+      <button type="button" onclick="leadDialog.close()" aria-label="Sluiten" title="Sluiten"
+        style="background:none;border:0;font-size:22px;line-height:1;color:var(--dim);cursor:pointer;padding:0 2px;flex:none">×</button>
+    </div>
     <div style="font-size:13px;color:var(--dim)">
       ${l.handelsnamen && l.handelsnamen!==l.naam ? 'h/o '+l.handelsnamen+'<br>' : ''}
       ${[l.adres,l.postcode,l.plaats].filter(Boolean).join(', ')||'Adres onbekend'} · ${l.provincie||'provincie onbekend'}<br>
@@ -752,14 +756,11 @@ window.openLead = async id => {
     </div>
     <div class="veldgroep">
       <div class="veldgroep-titel">Activiteit vastleggen</div>
-      <label>Contactmoment</label>
-      <div style="display:flex;gap:8px">
-        <select id="dContactType"><option>Gebeld</option><option>Gemaild</option><option>Gesproken</option><option>Anders</option></select>
-        <input type="text" id="dContactNotitie" placeholder="korte notitie…" style="flex:1">
+      <label>Notitie</label>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="dNotitie" rows="2" style="flex:1" placeholder="Korte notitie…"></textarea>
         <button class="knop secundair" id="dLogContact">+ Log</button>
       </div>
-      <label>Notitie bij statuswijziging</label>
-      <textarea id="dNotitie" rows="2"></textarea>
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
       ${l.am?'<button class="knop secundair" id="dVrijgeven" style="margin-right:auto;color:#b91c1c">Geef vrij</button>':''}
@@ -806,8 +807,10 @@ window.openLead = async id => {
     $('#dScan').disabled = false;
   };
   $('#dLogContact').onclick = async () => {
+    const notitie = $('#dNotitie').value.trim();
+    if (!notitie) return alert('Vul eerst een notitie in.');
     await api(`/api/leads/${id}/contact`, {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:$('#dContactType').value, notitie:$('#dContactNotitie').value, am:$('#dAm').value||l.am||localStorage.mijnAm})});
+      body:JSON.stringify({type:'Notitie', notitie, am:$('#dAm').value||l.am||localStorage.mijnAm})});
     leadDialog.close(); await laadAlles(); openLead(id);
   };
   $('#dOpslaan').onclick = async () => {
