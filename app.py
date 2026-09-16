@@ -357,6 +357,42 @@ def get_leads(status: str = None, klasse: str = None, provincie: str = None, am:
     return out
 
 
+AANDACHT_STIL_DAGEN = 21
+
+
+@app.get("/api/aandacht")
+def aandacht():
+    """Leads met een verlopen vervolgactie of die al lang stilliggen — actiepunten voor AM's."""
+    con = DB()
+    leads = list(con.execute(f"SELECT * FROM leads WHERE status IN ({','.join('?'*len(LOPEND))})", LOPEND))
+    laatste_activiteit = {}
+    for tabel in ("status_log", "contactmomenten"):
+        for r in con.execute(f"SELECT lead_id, ts FROM {tabel}"):
+            if r["lead_id"] not in laatste_activiteit or str(r["ts"]) > laatste_activiteit[r["lead_id"]]:
+                laatste_activiteit[r["lead_id"]] = str(r["ts"])
+    con.close()
+
+    vandaag = date.today()
+    out = []
+    for l in leads:
+        l = dict(l)
+        vervolg = norm_datum(l.get("vervolg_datum"))
+        if vervolg and date.fromisoformat(vervolg) < vandaag:
+            l["reden"] = f"Vervolgactie verlopen op {vervolg}"
+            out.append((0, vervolg, l))
+            continue
+        laatste = laatste_activiteit.get(l["id"], str(l["aangemaakt"]))[:10]
+        try:
+            dagen = (vandaag - date.fromisoformat(laatste)).days
+        except ValueError:
+            continue
+        if dagen > AANDACHT_STIL_DAGEN:
+            l["reden"] = f"Al {dagen} dagen geen update"
+            out.append((1, laatste, l))
+    out.sort(key=lambda t: (t[0], t[1]))
+    return [l for _, _, l in out]
+
+
 class ClaimBody(BaseModel):
     am: str
 
