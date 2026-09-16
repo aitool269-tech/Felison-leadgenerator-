@@ -690,13 +690,15 @@ class GegevensBody(BaseModel):
     telefoon: str = None
     email: str = None
     contactpersoon: str = None
+    contactpersoon_functie: str = None
 
 
 @app.post("/api/leads/{lead_id}/gegevens")
 def zet_gegevens(lead_id: int, body: GegevensBody):
     con = DB()
-    con.execute("UPDATE leads SET telefoon=?, email=?, contactpersoon=? WHERE id=?",
-                (body.telefoon or None, body.email or None, body.contactpersoon or None, lead_id))
+    con.execute("UPDATE leads SET telefoon=?, email=?, contactpersoon=?, contactpersoon_functie=? WHERE id=?",
+                (body.telefoon or None, body.email or None, body.contactpersoon or None,
+                 body.contactpersoon_functie or None, lead_id))
     con.commit(); con.close()
     return {"ok": True}
 
