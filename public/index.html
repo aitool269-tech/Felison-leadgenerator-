@@ -117,6 +117,7 @@
   button.knop.secundair{background:#fff;color:var(--tekst);border:1px solid var(--rand)}
   button.knop.secundair:hover{background:#F9FAFB;border-color:#D0D5DD}
   button.knop:disabled{opacity:.5;cursor:default}
+  button.knop.compact{padding:var(--sp-2) var(--sp-3)}
   #kaart{height:560px;border-radius:14px;border:1px solid var(--rand);box-shadow:var(--schaduw)}
   .rapport-sectie{margin-top:var(--sp-6)}
   .rapport-sectie:first-child{margin-top:0}
@@ -408,9 +409,9 @@
     <div id="loginDemoBadge" hidden style="background:var(--lavbg);color:var(--lavd);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin:0 0 10px">🎬 Dit is de demo-omgeving — log in met code: demo</div>
     <p style="color:var(--dim);font-size:13px;margin:0 0 14px">Voer de toegangscode in om het leaddashboard te openen.</p>
     <input type="text" id="loginCode" placeholder="Toegangscode" autocomplete="off" autocapitalize="off" spellcheck="false"
-           style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:8px;font-size:15px">
+           style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);font-size:15px">
     <div id="loginFout" style="color:#b91c1c;font-size:13px;min-height:18px;margin:6px 0"></div>
-    <button class="knop" id="loginKnop" style="width:100%;padding:10px">Inloggen</button>
+    <button class="knop compact" id="loginKnop" style="width:100%">Inloggen</button>
   </div>
 </div>
 
@@ -588,7 +589,7 @@ function tekenRapportFilterChip() {
     chip.style = 'margin-bottom:10px;padding:6px 12px;background:var(--lavbg);color:var(--lavd);border-radius:8px;font-size:13px;display:flex;gap:10px;align-items:center;width:fit-content';
     $('#tab-leads').prepend(chip);
   }
-  chip.innerHTML = `Rapportfilter: <b>${rapportExtraFilter.label}</b> <button class="knop secundair" style="padding:2px 10px" onclick="rapportExtraFilter=null;tekenTabel();tekenRapportFilterChip()">✕ wissen</button>`;
+  chip.innerHTML = `Rapportfilter: <b>${rapportExtraFilter.label}</b> <button class="knop secundair compact" onclick="rapportExtraFilter=null;tekenTabel();tekenRapportFilterChip()">✕ wissen</button>`;
   // De export bouwt zijn query alleen uit de standaard-filterdropdowns en kent
   // dit rapportfilter niet — export daarom uitschakelen om een mismatch tussen
   // getoonde lijst en geëxporteerd bestand te voorkomen.
@@ -719,11 +720,11 @@ window.openLead = async id => {
       <div><label>Vervolgactie</label>
         <input type="text" id="dVervolgActie" value="${l.vervolg_actie||''}" placeholder="bijv. terugbellen" style="width:100%"></div>
       <div><label>Vervolgdatum</label>
-        <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:12px;background:#FAFAFE;font:inherit"></div>
+        <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
       <div><label>Presentje (marketing)</label>
         <select id="dPresentjeType" style="width:100%"><option value="">— soort —</option>${PRESENTJE_TYPES.map(t=>`<option ${t===l.presentje_type?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>Presentje verstuurd op</label>
-        <input type="date" id="dPresentjeDatum" value="${l.presentje_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:12px;background:#FAFAFE;font:inherit"></div>
+        <input type="date" id="dPresentjeDatum" value="${l.presentje_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
     </div>
     <label>Contactmoment vastleggen</label>
     <div style="display:flex;gap:8px">
@@ -1081,7 +1082,7 @@ function periodeKnoppen() {
     ${opties.map(([label,dagen]) => {
       const vanaf = dagen ? new Date(Date.now()-dagen*864e5).toISOString().slice(0,10) : null;
       const actief = (rapportPeriode?.vanaf||null) === vanaf;
-      return `<button class="knop ${actief?'':'secundair'}" style="padding:6px 14px"
+      return `<button class="knop ${actief?'':'secundair'} compact"
         onclick="rapportPeriode=${vanaf?`{vanaf:'${vanaf}'}`:'null'};laadRapport()">${label}</button>`;
     }).join('')}
   </div>`;
