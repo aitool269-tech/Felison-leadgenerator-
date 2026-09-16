@@ -132,6 +132,9 @@
   dialog{border:1px solid var(--rand);border-radius:16px;padding:24px;width:540px;max-width:92vw;box-shadow:0 20px 48px rgba(16,24,40,.18)}
   dialog::backdrop{background:rgba(16,24,40,.4);backdrop-filter:blur(2px)}
   dialog h3{margin-top:0;letter-spacing:-.3px}
+  .veldgroep{margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--rand)}
+  .veldgroep:first-of-type{margin-top:var(--sp-4);padding-top:0;border-top:0}
+  .veldgroep-titel{font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);margin:0 0 var(--sp-2)}
   label{display:block;margin:12px 0 5px;font-size:12.5px;color:var(--dim);font-weight:600}
   textarea{width:100%;border:1px solid var(--rand);border-radius:10px;padding:10px;font:inherit;outline:none}
   textarea:focus{border-color:var(--lav);box-shadow:0 0 0 3px rgba(83,177,253,.18)}
@@ -705,43 +708,57 @@ window.openLead = async id => {
         <button class="knop secundair" id="dRelatieNee">Nee, geen match</button>
       </div>
     </div>`:''}
-    <label>Accountmanager</label>
-    <div style="display:flex;gap:8px">
-      <select id="dAm"><option value="">— kies AM —</option>${amOpties}</select>
-      <button class="knop" id="dClaim">${l.am?'Wijzig':'Claim'}</button>
+    <div class="veldgroep">
+      <div class="veldgroep-titel">Status &amp; toewijzing</div>
+      <label>Accountmanager</label>
+      <div style="display:flex;gap:8px">
+        <select id="dAm"><option value="">— kies AM —</option>${amOpties}</select>
+        <button class="knop" id="dClaim">${l.am?'Wijzig':'Claim'}</button>
+      </div>
+      <label>Status</label>
+      <select id="dStatus" style="width:100%">${STATUSSEN.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-      <div><label>Status</label>
-        <select id="dStatus" style="width:100%">${STATUSSEN.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div>
-      <div><label>Contactpersoon</label>
-        <input type="text" id="dContactpersoon" value="${l.contactpersoon||''}" placeholder="Naam" style="width:100%"></div>
-      <div><label>Telefoon</label>
-        <input type="text" id="dTelefoon" value="${l.telefoon||''}" placeholder="06…" style="width:100%"></div>
-      <div><label>E-mail</label>
-        <input type="text" id="dEmail" value="${l.email||''}" placeholder="info@…" style="width:100%"></div>
-      <div><label>Vervolgactie</label>
-        <input type="text" id="dVervolgActie" value="${l.vervolg_actie||''}" placeholder="bijv. terugbellen" style="width:100%"></div>
-      <div><label>Vervolgdatum</label>
-        <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
-      <div><label>Presentje (marketing)</label>
-        <select id="dPresentjeType" style="width:100%"><option value="">— soort —</option>${PRESENTJE_TYPES.map(t=>`<option ${t===l.presentje_type?'selected':''}>${t}</option>`).join('')}</select></div>
-      <div><label>Presentje verstuurd op</label>
-        <input type="date" id="dPresentjeDatum" value="${l.presentje_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
+    <div class="veldgroep">
+      <div class="veldgroep-titel">Contactgegevens</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div><label>Contactpersoon</label>
+          <input type="text" id="dContactpersoon" value="${l.contactpersoon||''}" placeholder="Naam" style="width:100%"></div>
+        <div><label>Telefoon</label>
+          <input type="text" id="dTelefoon" value="${l.telefoon||''}" placeholder="06…" style="width:100%"></div>
+        <div><label>E-mail</label>
+          <input type="text" id="dEmail" value="${l.email||''}" placeholder="info@…" style="width:100%"></div>
+      </div>
+      <label>Website</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="dWebsite" value="${l.website||''}" placeholder="https://…" style="flex:1">
+        <button class="knop secundair" id="dScan" title="Controleert de website en telt het resultaat mee in de score">Scan</button>
+      </div>
+      <div id="dScanResultaat" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
     </div>
-    <label>Contactmoment vastleggen</label>
-    <div style="display:flex;gap:8px">
-      <select id="dContactType"><option>Gebeld</option><option>Gemaild</option><option>Gesproken</option><option>Anders</option></select>
-      <input type="text" id="dContactNotitie" placeholder="korte notitie…" style="flex:1">
-      <button class="knop secundair" id="dLogContact">+ Log</button>
+    <div class="veldgroep">
+      <div class="veldgroep-titel">Planning &amp; presentje</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div><label>Vervolgactie</label>
+          <input type="text" id="dVervolgActie" value="${l.vervolg_actie||''}" placeholder="bijv. terugbellen" style="width:100%"></div>
+        <div><label>Vervolgdatum</label>
+          <input type="date" id="dVervolgDatum" value="${l.vervolg_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
+        <div><label>Presentje (marketing)</label>
+          <select id="dPresentjeType" style="width:100%"><option value="">— soort —</option>${PRESENTJE_TYPES.map(t=>`<option ${t===l.presentje_type?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div><label>Presentje verstuurd op</label>
+          <input type="date" id="dPresentjeDatum" value="${l.presentje_datum||''}" style="width:100%;padding:10px;border:1px solid var(--rand);border-radius:var(--r-md);background:#fff;font:inherit"></div>
+      </div>
     </div>
-    <label>Notitie bij statuswijziging</label>
-    <textarea id="dNotitie" rows="2"></textarea>
-    <label>Website</label>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="dWebsite" value="${l.website||''}" placeholder="https://…" style="flex:1">
-      <button class="knop secundair" id="dScan" title="Controleert de website en telt het resultaat mee in de score">Scan</button>
+    <div class="veldgroep">
+      <div class="veldgroep-titel">Activiteit vastleggen</div>
+      <label>Contactmoment</label>
+      <div style="display:flex;gap:8px">
+        <select id="dContactType"><option>Gebeld</option><option>Gemaild</option><option>Gesproken</option><option>Anders</option></select>
+        <input type="text" id="dContactNotitie" placeholder="korte notitie…" style="flex:1">
+        <button class="knop secundair" id="dLogContact">+ Log</button>
+      </div>
+      <label>Notitie bij statuswijziging</label>
+      <textarea id="dNotitie" rows="2"></textarea>
     </div>
-    <div id="dScanResultaat" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
       ${l.am?'<button class="knop secundair" id="dVrijgeven" style="margin-right:auto;color:#b91c1c">Geef vrij</button>':''}
       <button class="knop secundair" onclick="leadDialog.close()">Sluiten</button>
