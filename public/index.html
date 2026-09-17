@@ -181,6 +181,8 @@
   .rapport-combo-vul{position:absolute;left:0;right:0;bottom:0;background:var(--lavd);border-radius:8px 8px 0 0}
   .rapport-combo-label{flex:none;margin-top:8px;font-size:11.5px;color:var(--dim);font-weight:600;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .rapport-combo-legenda{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 var(--sp-4);font-size:12.5px;color:var(--dim);font-weight:600}
+  .rapport-combo-legenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--rand)}
   .rapport-subkop{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 var(--sp-2)}
   .rapport-subblok + .rapport-subblok{margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--grijsbg)}
   .rapport-signaal-lijst{max-height:168px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
@@ -1418,6 +1420,10 @@ async function laadRapport() {
       </div>
       <div class="paneel" style="max-width:none;margin-bottom:var(--sp-4)">
         <h3 style="margin-top:0">Leads &amp; conversie per provincie</h3>
+        <div class="rapport-combo-legenda">
+          <span><i style="background:var(--lavbg)"></i>Leads (totaal, staafhoogte)</span>
+          <span><i style="background:var(--lavd)"></i>Conversie naar aanstelling (%, onderin de staaf)</span>
+        </div>
         <div class="rapport-combo">${provincieCombo}</div>
       </div>
       <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Actie &amp; signalen</h3>
