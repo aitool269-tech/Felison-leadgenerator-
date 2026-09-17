@@ -128,6 +128,8 @@
   #tab-leads th:last-child,#tab-leads td:last-child{padding-right:0}
   #tab-leads tr:hover td{background:#FCFCFD}
   #tab-leads td b{font-weight:600}
+  #tab-leads .kantoor-naam{font-weight:600;color:var(--tekst);text-decoration:none}
+  #tab-leads a.kantoor-naam:hover{text-decoration:underline}
   #tab-leads td small{color:var(--grijstekst);font-size:12.5px}
   #tab-leads td .knop.secundair{border-color:var(--rand-licht);box-shadow:none;font-weight:500;font-size:13.5px;padding:6px 15px}
   #tab-leads td .knop.secundair:hover{background:var(--markering)}
@@ -882,7 +884,7 @@ function tekenTabel() {
         <div class="ls-segmenten">${scoreSegmenten(l.score)}</div>
         <span class="ls-pil">${l.klasse} · ${l.score}</span>
       </div></td>
-      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd)" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber)" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
+      <td>${l.website?`<a class="kantoor-naam" href="${l.website}" target="_blank" rel="noopener" title="Website openen: ${l.website}">${l.naam}</a>`:`<b class="kantoor-naam">${l.naam}</b>`}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd)" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber)" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
           <span class="alleen-mobiel">${l.plaats||'plaats onbekend'}${l.am?' · '+l.am:''}</span>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
