@@ -656,14 +656,23 @@ let LEADS = [], AMS = [], PRESENTJE_TYPES = [], STATUSSEN = [], kaart = null, ma
 
 // ---- tabs ----
 const TAB_KNOPPEN = 'nav button, #instellingenKnop, #instellingenKnopSidebar';
+// Instellingen blijft verborgen tot openInstellingenTab() het wachtwoord
+// heeft geverifieerd (of vaststelt dat er geen ingesteld is) — anders was de
+// tab met lege velden al zichtbaar zodra iemand de wachtwoordprompt met Esc
+// wegdrukte. Bij annuleren/mislukken valt terugNaarLeads() terug op Leads.
 document.querySelectorAll(TAB_KNOPPEN).forEach(b => b.onclick = () => {
   document.querySelectorAll(TAB_KNOPPEN).forEach(x => x.classList.toggle('actief', x.dataset.tab === b.dataset.tab));
-  ['leads','mijn','kaart','rapport','instellingen'].forEach(t => $('#tab-'+t).hidden = t !== b.dataset.tab);
+  ['leads','mijn','kaart','rapport','instellingen'].forEach(t => $('#tab-'+t).hidden = true);
+  if (b.dataset.tab === 'instellingen') { openInstellingenTab().catch(e => console.error(e)); return; }
+  $('#tab-'+b.dataset.tab).hidden = false;
   if (b.dataset.tab === 'kaart') setTimeout(tekenKaart, 50);
   if (b.dataset.tab === 'mijn') { tekenMijn(); tekenPushPaneel('pushPaneelMijn'); }
   if (b.dataset.tab === 'rapport') laadRapport();
-  if (b.dataset.tab === 'instellingen') openInstellingenTab().catch(e => console.error(e));
 });
+function terugNaarLeads() {
+  document.querySelectorAll(TAB_KNOPPEN).forEach(x => x.classList.toggle('actief', x.dataset.tab === 'leads'));
+  $('#tab-leads').hidden = false;
+}
 const stKlasse = s => 'st-' + (s||'').replace(/ /g,'-');
 
 // Code wordt zowel in localStorage als in een cookie (1 jaar) bewaard — als de ene
@@ -1804,7 +1813,7 @@ $('#amToevoegen').onclick = async () => {
 async function openInstellingenTab(herkansing) {
   if ((herkansing || META.instellingen_beveiligd) && !huidigeInstellingenCode()) {
     const code = prompt('Voer het Instellingen-wachtwoord in:');
-    if (code === null) return;  // geannuleerd: tabblad blijft leeg tot een volgende poging
+    if (code === null) return terugNaarLeads();  // geannuleerd (ook via Esc)
     bewaarInstellingenCode(code);
   }
   try {
@@ -1817,6 +1826,7 @@ async function openInstellingenTab(herkansing) {
     }
     throw e;
   }
+  $('#tab-instellingen').hidden = false;
   tekenPushPaneel('pushPaneelInst');
   laadPushApparaten();
 }
