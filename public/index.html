@@ -1508,7 +1508,6 @@ async function laadRapport() {
   ]);
   const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '—';
   const pj = r.presentjes;
-  const d = r.doorlooptijd;
   const totaalLeads = Object.values(r.verdeling.status).reduce((a,b) => a+b, 0);
 
   // Pipeline: hoeveel leads bereikten ooit elke stap (som over alle maand-cohorten).
@@ -1574,12 +1573,9 @@ async function laadRapport() {
         </div>
       </div>
       ${periodeKnoppen()}
-      <div class="kaarten" style="margin:var(--sp-4) 0">
-        <div class="stat"><b>${totaalLeads}</b><span>totaal leads</span></div>
-        <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen (${pct(d.aantal_aanstellingen,totaalLeads)})</span></div>
-        <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
-        <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
-        <div class="stat"><b>${pj.openstaand}</b><span>openstaande presentjes (van ${pj.verstuurd})</span></div>
+      <div class="paneel" style="max-width:none;margin:var(--sp-4) 0">
+        <h3 style="margin-top:0">Pipeline</h3>
+        <div class="rapport-funnel">${pijplijnHtml}</div>
       </div>
       <div class="rapport-grid-2">
         <div class="paneel" style="max-width:none">
@@ -1590,10 +1586,6 @@ async function laadRapport() {
           <h3 style="margin-top:0">Conversie totaal</h3>
           ${gauge(gaugePct, 'van de leads bereikte ooit "In gesprek"')}
         </div>
-      </div>
-      <div class="paneel" style="max-width:none;margin-bottom:var(--sp-4)">
-        <h3 style="margin-top:0">Pipeline</h3>
-        <div class="rapport-funnel">${pijplijnHtml}</div>
       </div>
       <div class="rapport-grid-3">
         <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Per klasse</h3>
