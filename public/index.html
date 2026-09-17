@@ -86,8 +86,23 @@
   .stat span{color:var(--dim);font-size:12.5px;font-weight:500;display:block}
   .stat .cijferrij{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:2px}
   .stat b{font-size:25px;font-weight:800;letter-spacing:-.8px;line-height:1.1}
-  .stat .spark{flex:none;display:flex;align-items:flex-end;gap:2px;height:26px;padding-bottom:2px}
-  .stat .spark i{width:4px;border-radius:2px;background:var(--lav);display:block}
+  /* Quick-filter tabs boven de Leads-tabel — alleen voor dit tabblad. */
+  .ls-tabs{display:flex;gap:26px;border-bottom:1px solid var(--rand);margin-bottom:16px}
+  .ls-tabs button{background:none;border:0;padding:0 0 11px;font:inherit;font-weight:500;font-size:13.5px;
+    color:var(--dim);cursor:pointer;position:relative}
+  .ls-tabs button.actief{color:var(--zwart);font-weight:700}
+  .ls-tabs button.actief::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--zwart)}
+  /* Score- en status-weergave in de Leads-tabel, los van de gedeelde
+     .badge/.status-klassen die elders (Mijn leads, leaddetail) blijven staan. */
+  .ls-score{display:flex;align-items:center;gap:9px}
+  .ls-segmenten{display:flex;align-items:flex-end;gap:2px;flex:none}
+  .ls-segmenten i{display:block;width:3px;border-radius:1px;background:var(--rand)}
+  .ls-pil{font-size:12px;font-weight:700;border:1px solid var(--rand);border-radius:var(--r-sm);padding:2px 7px;white-space:nowrap}
+  .ls-status{font-size:11px;padding:3px 10px;border-radius:var(--r-pill);font-weight:600;border:1px solid var(--rand);
+    background:#fff;color:var(--tekst);display:inline-block;white-space:nowrap}
+  .ls-am{display:flex;align-items:center;gap:8px}
+  .ls-am-av{width:24px;height:24px;border-radius:99px;color:#fff;font-size:10.5px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;flex:none}
   .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
   select,input[type=text]{padding:9px 14px;border:1px solid var(--rand);border-radius:10px;background:#fff;font:inherit;font-weight:500;
                           font-size:13px;color:var(--tekst);box-shadow:var(--schaduw);outline:none;appearance:none}
@@ -350,6 +365,13 @@
 
 <section id="tab-leads">
   <div class="kaarten" id="statKaarten"></div>
+  <div class="ls-tabs" id="leadsTabs">
+    <button class="actief" data-lt="">Alle</button>
+    <button data-lt="nieuw">Nieuw</button>
+    <button data-lt="mijn">Mijn leads</button>
+    <button data-lt="aandacht">Aandacht nodig</button>
+    <button data-lt="a">Klasse A</button>
+  </div>
   <div class="filters">
     <select id="fStatus"><option value="">Alle statussen</option></select>
     <select id="fKlasse"><option value="">Alle klassen</option><option>A</option><option>B</option><option>C</option></select>
@@ -724,26 +746,63 @@ function tekenRapportFilterChip() {
   exportKnop.title = 'Exporteren is uitgeschakeld: er is een rapportfilter actief ("' + rapportExtraFilter.label + '") dat de export niet kan toepassen. Wis het filter om te exporteren.';
 }
 
+// Snelfilter-tabs boven de Leads-tabel; "aandacht" haalt de lijst lui op
+// (dezelfde bron als het Overzicht-tabblad) en cachet de id's tot herladen.
+let leadsKwikFilter = '';
+let aandachtIds = null;
+document.querySelectorAll('#leadsTabs button').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('#leadsTabs button').forEach(x => x.classList.remove('actief'));
+  b.classList.add('actief');
+  leadsKwikFilter = b.dataset.lt;
+  if (leadsKwikFilter === 'aandacht' && !aandachtIds) {
+    const lijst = await api('/api/aandacht');
+    aandachtIds = new Set(lijst.map(l => l.id));
+  }
+  tekenTabel();
+});
+
 function gefilterd() {
   const s=$('#fStatus').value, k=$('#fKlasse').value, p=$('#fProvincie').value, a=$('#fAm').value,
         z=$('#fZoek').value.toLowerCase();
   return LEADS.filter(l =>
     (!s || l.status===s) && (!k || l.klasse===k) && (!p || l.provincie===p) && (!a || l.am===a) &&
-    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)));
+    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)) &&
+    (leadsKwikFilter!=='nieuw' || l.status==='Nieuw') &&
+    (leadsKwikFilter!=='mijn' || l.am===localStorage.mijnAm) &&
+    (leadsKwikFilter!=='a' || l.klasse==='A') &&
+    (leadsKwikFilter!=='aandacht' || (aandachtIds && aandachtIds.has(l.id))));
+}
+
+// Score als kleine oplopende staafjes (gevuld = klasse-kleur, aandeel naar
+// rato van de score) plus een outline-pil met klasse en cijfer.
+const LS_KLASSE_KLEUR = {A:'var(--lav)', B:'#F0B45C', C:'#E88686'};
+function scoreSegmenten(score, klasse) {
+  const kleur = LS_KLASSE_KLEUR[klasse] || 'var(--grijs)';
+  const vol = Math.max(1, Math.min(8, Math.round((score||0)/100*8)));
+  return Array.from({length:8}, (_,i) =>
+    `<i style="height:${6+i}px${i<vol?`;background:${kleur}`:''}"></i>`).join('');
+}
+function leadsAmCel(naam) {
+  if (!naam) return '—';
+  const kleur = (AMS.find(a=>a.naam===naam)||{}).kleur || 'var(--grijs)';
+  return `<div class="ls-am"><span class="ls-am-av" style="background:${kleur}">${naam.trim()[0].toUpperCase()}</span>${naam}</div>`;
 }
 
 function tekenTabel() {
   $('#leadRijen').innerHTML = gefilterd().map(l => `
     <tr>
-      <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
+      <td><div class="ls-score" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">
+        <div class="ls-segmenten">${scoreSegmenten(l.score, l.klasse)}</div>
+        <span class="ls-pil">${l.klasse} · ${l.score}</span>
+      </div></td>
       <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd)" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber)" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
           <span class="alleen-mobiel">${l.plaats||'plaats onbekend'}${l.am?' · '+l.am:''}</span>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
       <td>${fmtDatum(l.begindatum_dienst)}</td>
-      <td><span class="status ${stKlasse(l.status)}">${l.status}</span>${l.presentje_datum?` <span title="Presentje: ${l.presentje_type} verstuurd op ${fmtDatum(l.presentje_datum)}" style="cursor:default">🎁</span>`:''}</td>
-      <td>${l.am||'—'}</td>
+      <td><span class="ls-status">${l.status}</span>${l.presentje_datum?` <span title="Presentje: ${l.presentje_type} verstuurd op ${fmtDatum(l.presentje_datum)}" style="cursor:default">🎁</span>`:''}</td>
+      <td>${leadsAmCel(l.am)}</td>
       <td><button class="knop secundair" onclick="openLead(${l.id})">Open</button></td>
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Geen leads — importeer eerst de AFM-bestanden.</td></tr>';
 }
@@ -762,8 +821,7 @@ function tekenStats() {
   const telling = s => LEADS.filter(l=>l.status===s).length;
   const open = LEADS.filter(l=>['Nieuw'].includes(l.status)).length;
   const lopend = LEADS.filter(l=>['Geclaimd','Benaderd','In gesprek','Opnieuw binnen'].includes(l.status)).length;
-  const spark = () => '<div class="spark">' + [9,14,7,17,11,20,13].map(h=>`<i style="height:${h}px"></i>`).join('') + '</div>';
-  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><span>${label}</span><div class="cijferrij"><b>${n}</b>${spark()}</div></div>`;
+  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><span>${label}</span><div class="cijferrij"><b>${n}</b></div></div>`;
   $('#statKaarten').innerHTML =
     kaart('totaal', LEADS.length, 'totaal leads') +
     kaart('claim', open, 'nog te claimen') +
