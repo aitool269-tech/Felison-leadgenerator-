@@ -133,6 +133,24 @@
     color:var(--dim);margin:0 0 var(--sp-3)}
   .rapport-sectie .paneel + .paneel{margin-top:var(--sp-4)}
   .rapport-sectie table{box-shadow:none}
+  .rapport-grid-2{display:grid;grid-template-columns:1.7fr 1fr;gap:var(--sp-4);margin-bottom:var(--sp-4)}
+  .rapport-chart{display:flex;align-items:flex-end;gap:10px;height:220px;padding-top:8px}
+  .rapport-staaf-kol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:8px;min-width:0}
+  .rapport-staaf{width:100%;max-width:36px;border-radius:8px 8px 3px 3px;background:var(--lavbg);position:relative}
+  .rapport-staaf:hover{background:var(--lav)}
+  .rapport-staaf-maand{font-size:11px;color:var(--dim);font-weight:600}
+  .rapport-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(-8px);background:var(--paneel);
+    border:1px solid var(--rand);border-radius:10px;padding:10px 14px;box-shadow:0 10px 24px rgba(16,24,40,.16);
+    width:170px;z-index:5;opacity:0;pointer-events:none;transition:opacity .12s;text-align:left}
+  .rapport-staaf:hover .rapport-tooltip{opacity:1}
+  .rapport-tooltip .tt-maand{font-weight:700;font-size:12.5px;margin-bottom:6px}
+  .rapport-tooltip .tt-rij{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--dim);padding:1px 0}
+  .rapport-tooltip .tt-rij b{color:var(--tekst)}
+  .rapport-gauge{display:flex;flex-direction:column;align-items:center;flex:1;justify-content:center}
+  .rapport-gauge-svgwrap{position:relative;width:180px;height:100px}
+  .rapport-gauge-svgwrap svg{position:absolute;top:0;left:0}
+  .rapport-gauge-cijfer{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:26px;font-weight:800;letter-spacing:-.6px}
+  .rapport-gauge-label{font-size:12.5px;color:var(--dim);font-weight:600;margin-top:12px;text-align:center;max-width:220px}
   .paneel{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:22px;max-width:660px;box-shadow:var(--schaduw)}
   .paneel h3,.paneel h4{letter-spacing:-.2px}
   .dropzone{border:1.5px dashed #D0D5DD;border-radius:12px;padding:20px;text-align:center;color:var(--dim);margin:8px 0;cursor:pointer;background:#FCFCFD;font-weight:500}
@@ -189,6 +207,7 @@
     .mijnrij .knop{order:3;margin-left:auto}
     /* Rapport-tabellen mogen nooit buiten beeld vallen. */
     #rapportInhoud .paneel table{display:block;overflow-x:auto;white-space:nowrap}
+    .rapport-grid-2{grid-template-columns:1fr}
 
     /* Leaddetail: het scherm waar de AM belt, noteert en een actie plant. */
     dialog{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;border:0;
@@ -255,7 +274,7 @@
   </div>
   <nav>
     <div class="nav-groep">
-      <div class="nav-groep-titel">Overzicht</div>
+      <div class="nav-groep-titel">Navigatie</div>
       <button data-tab="leads" class="actief">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/></svg>
         Leads</button>
@@ -267,7 +286,7 @@
         Kaart</button>
       <button data-tab="rapport">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
-        Rapport</button>
+        Overzicht</button>
     </div>
     <div class="nav-groep">
       <div class="nav-groep-titel">Overig</div>
@@ -1165,6 +1184,49 @@ function donut(data, titel) {
     <div>${legenda}</div></div>`;
 }
 
+const MAAND_KORT = {'01':'jan','02':'feb','03':'mrt','04':'apr','05':'mei','06':'jun',
+  '07':'jul','08':'aug','09':'sep','10':'okt','11':'nov','12':'dec'};
+
+// Instroom per maand als staafdiagram met hover-tooltip (leads/benaderd/in
+// gesprek/aanstelling); alleen de staaf zelf is doorklikbaar naar de
+// bijbehorende Leads-maand, net als voorheen alleen de Leads-kolom was.
+function rapportChart(cohorten) {
+  if (!cohorten.length) return '<p style="color:var(--dim)">Nog geen data.</p>';
+  const max = Math.max(...cohorten.map(c => c.leads), 1);
+  return `<div class="rapport-chart">${cohorten.map(c => {
+    const filterCall = `naarLeadsMetFilter({extra:{label:'Ingestroomd in ${jsStr(c.maand)}', test:l=>String(l.aangemaakt).slice(0,7)==='${jsStr(c.maand)}'}})`;
+    const klikbaar = magDoorklikken();
+    return `<div class="rapport-staaf-kol">
+      <div class="rapport-staaf" style="height:${Math.max(4, Math.round(c.leads/max*100))}%${klikbaar?';cursor:pointer':''}"${klikbaar?` onclick="${filterCall}"`:''}>
+        <div class="rapport-tooltip">
+          <div class="tt-maand">${c.maand.split('-').reverse().join('-')}</div>
+          <div class="tt-rij"><span>Leads</span><b>${c.leads}</b></div>
+          <div class="tt-rij"><span>Benaderd</span><b>${c.benaderd}</b></div>
+          <div class="tt-rij"><span>In gesprek</span><b>${c.in_gesprek}</b></div>
+          <div class="tt-rij"><span>Aanstelling</span><b>${c.aanstelling}</b></div>
+        </div>
+      </div>
+      <div class="rapport-staaf-maand">${MAAND_KORT[c.maand.slice(5,7)] || c.maand}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function gauge(pct, titel) {
+  const omtrek = Math.PI * 76;
+  const offset = omtrek * (1 - Math.min(100, Math.max(0, pct)) / 100);
+  return `<div class="rapport-gauge">
+    <div class="rapport-gauge-svgwrap">
+      <svg width="180" height="100" viewBox="0 0 180 100">
+        <path d="M14,96 A76,76 0 0,1 166,96" fill="none" stroke="var(--grijsbg)" stroke-width="16" stroke-linecap="round"/>
+        <path d="M14,96 A76,76 0 0,1 166,96" fill="none" stroke="var(--lavd)" stroke-width="16" stroke-linecap="round"
+          stroke-dasharray="${omtrek.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/>
+      </svg>
+      <div class="rapport-gauge-cijfer">${pct}%</div>
+    </div>
+    <div class="rapport-gauge-label">${titel}</div>
+  </div>`;
+}
+
 const PRESENTJE_PALET = ['#5B63C7','#1D9E75','#EF9F27','#E24B4A','#97C459','#BA7517','#0B9455','#8A90A6'];
 let rapportPeriode = null;  // null = alles; anders {vanaf:'jjjj-mm-dd'}
 
@@ -1229,14 +1291,6 @@ async function laadRapport() {
   const pjEffectRijen = pj.effect.map(e => `<tr><td>${e.label}</td><td>${e.leads}</td>
     <td>${e.in_gesprek} <span style="color:var(--dim)">(${pct(e.in_gesprek,e.leads)})</span></td>
     <td>${e.aanstelling}</td><td><b>${e.conversie_pct}%</b></td></tr>`).join('');
-  const cohortRijen = r.cohorten.map(c => `<tr>
-    <td>${drillLink(c.maand.split('-').reverse().join('-'),
-      `naarLeadsMetFilter({extra:{label:'Ingestroomd in ${jsStr(c.maand)}', test:l=>String(l.aangemaakt).slice(0,7)==='${jsStr(c.maand)}'}})`)}</td>
-    <td>${c.leads}</td>
-    <td>${c.benaderd} <span style="color:var(--dim)">(${pct(c.benaderd,c.leads)})</span></td>
-    <td>${c.in_gesprek} <span style="color:var(--dim)">(${pct(c.in_gesprek,c.leads)})</span></td>
-    <td>${c.aanstelling} <span style="color:var(--dim)">(${pct(c.aanstelling,c.leads)})</span></td>
-    <td>${c.afgesloten}</td></tr>`).join('');
   const klasseRijen = r.klassen.map(k => { const klasseFilter = k.klasse === '?'
       ? `naarLeadsMetFilter({extra:{label:'Klasse onbekend', test:l=>!l.klasse}})`
       : `naarLeadsMetFilter({klasse:'${jsStr(k.klasse)}'})`;
@@ -1271,32 +1325,46 @@ async function laadRapport() {
       : `naarLeadsMetFilter({am:'${jsStr(naam)}'})`),
   })), 'per AM');
 
+  const totaalLeads = Object.values(r.verdeling.status).reduce((a,b) => a+b, 0);
+  const cohortTotaal = r.cohorten.reduce((acc,c) => {
+    acc.leads += c.leads; acc.in_gesprek += c.in_gesprek; return acc;
+  }, {leads:0, in_gesprek:0});
+  const gaugePct = cohortTotaal.leads ? Math.round(1000*cohortTotaal.in_gesprek/cohortTotaal.leads)/10 : 0;
+
   $('#rapportInhoud').innerHTML = `
     <div class="rapport-sectie">
-      <h2 class="rapport-sectie-titel">Overzicht</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:var(--sp-3)">
+        <h2 class="rapport-sectie-titel" style="margin:0">Overzicht</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="knop secundair compact" onclick="exportRapportCsv()">CSV export</button>
+          <button class="knop secundair compact" onclick="window.print()">Printen</button>
+        </div>
+      </div>
       ${periodeKnoppen()}
-      <div class="paneel" style="max-width:900px;display:flex;justify-content:space-between;align-items:center">
-        <h3 style="margin:0">Verdeling</h3>
-        <div style="display:flex;gap:8px">
-          <button class="knop secundair" onclick="exportRapportCsv()">CSV export</button>
-          <button class="knop secundair" onclick="window.print()">Printen</button>
+      <div class="kaarten" style="margin:var(--sp-4) 0">
+        <div class="stat"><b>${totaalLeads}</b><span>totaal leads</span></div>
+        <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen (${pct(d.aantal_aanstellingen,totaalLeads)})</span></div>
+        <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
+        <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
+        <div class="stat"><b>${pj.openstaand}</b><span>openstaande presentjes (van ${pj.verstuurd})</span></div>
+      </div>
+      <div class="rapport-grid-2">
+        <div class="paneel" style="max-width:none">
+          <h3 style="margin-top:0">Instroom per maand</h3>
+          ${rapportChart(r.cohorten)}
+        </div>
+        <div class="paneel" style="max-width:none;display:flex;flex-direction:column">
+          <h3 style="margin-top:0">Conversie totaal</h3>
+          ${gauge(gaugePct, 'van de leads bereikte ooit "In gesprek"')}
         </div>
       </div>
       <div class="paneel" style="max-width:900px">
+        <h3 style="margin-top:0">Verdeling</h3>
         <div style="display:flex;gap:36px;flex-wrap:wrap">${statusDonut}${klasseDonut}${amDonut}</div>
-      </div>
-      <div class="kaarten" style="margin:var(--sp-4) 0 0">
-        <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
-        <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
-        <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen totaal</span></div>
       </div>
     </div>
     <div class="rapport-sectie">
       <h2 class="rapport-sectie-titel">Detailanalyse</h2>
-      <div class="paneel" style="max-width:900px"><h3>Funnel per maand (cohort)</h3>
-        <table><thead><tr><th>Maand</th><th>Leads</th><th>Benaderd</th><th>In gesprek</th><th>Aanstelling</th><th>Afgesloten</th></tr></thead>
-        <tbody>${cohortRijen || '<tr><td colspan="6" style="color:var(--dim)">Nog geen data.</td></tr>'}</tbody></table>
-        <p style="font-size:12.5px;color:var(--dim)">Elke lead telt mee in de maand waarin hij voor het eerst binnenkwam. "Benaderd"/"In gesprek"/"Aanstelling" tellen leads die dat ooit bereikten (ook als ze later zijn afgesloten) en zijn daarom niet klikbaar; alleen "Leads" is klikbaar.</p></div>
       <div class="paneel" style="max-width:900px"><h3>Conversie per scoreklasse</h3>
         <table><thead><tr><th>Klasse</th><th>Leads</th><th>Benaderd</th><th>Aanstellingen</th><th>Conversie</th></tr></thead>
         <tbody>${klasseRijen}</tbody></table></div>
