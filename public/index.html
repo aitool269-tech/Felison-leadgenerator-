@@ -24,6 +24,10 @@
     --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
     --r-sm:8px; --r-md:10px; --r-lg:14px; --r-pill:999px;
     --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-md:16px; --fs-lg:20px; --fs-xl:25px;
+    /* Tokens van de Leads-restyle (sidebar + Leads-tab); andere tabbladen
+       gebruiken nog de bestaande tokens hierboven. */
+    --oranje:#FF6B35; --veld:#F6F6F7; --markering:#F3F3F4; --grijstekst:#8E8E93; --labeltekst:#9B9BA1;
+    --rand-licht:#EDEDEF; --rand-zacht:#F4F4F5; --donker:#1F1F22;
   }
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.55 'Inter',-apple-system,'Segoe UI',sans-serif;
@@ -72,6 +76,7 @@
   .nav-groep{display:contents}
   .nav-groep-titel{display:none}
   .alleen-desktop-nav{display:none}
+  .nav-tel,.nav-tel[hidden]{display:none}
   .sb-onder{display:none}
   .inhoud{flex:1;min-width:0;padding:22px 26px calc(76px + env(safe-area-inset-bottom))}
   /* Geen vaste max-breedte meer: .app vult nu de hele viewport (geen
@@ -80,14 +85,76 @@
   main{max-width:none}
   .kaarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:var(--paneel);border:1px solid var(--rand);border-radius:14px;padding:14px 16px;box-shadow:var(--schaduw)}
-  .stat .ik{width:34px;height:34px;border-radius:10px;border:1px solid var(--rand);background:#fff;color:var(--dim);
-            display:flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:var(--schaduw)}
-  .stat .ik svg{width:16px;height:16px}
   .stat span{color:var(--dim);font-size:12.5px;font-weight:500;display:block}
   .stat .cijferrij{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:2px}
+  /* Leads-tab KPI-strip: één vlakke band met scheidingslijnen (geen kaart,
+     geen icoon) — zoals het goedgekeurde ontwerp. */
+  #statKaarten{display:flex;background:#fff;border:0;border-bottom:1px solid var(--rand-licht);border-radius:0;
+    box-shadow:none;margin-bottom:0}
+  #statKaarten .stat{flex:1;min-width:0;background:none;border:0;border-right:1px solid var(--rand-licht);
+    border-radius:0;box-shadow:none;padding:16px 22px}
+  #statKaarten .stat:last-child{border-right:0}
+  #statKaarten .stat span{font-size:13px;color:var(--grijstekst);font-weight:500;margin-bottom:8px}
+  #statKaarten .stat .cijferrij{margin-top:0}
+  #statKaarten .stat b{font-size:26px;font-weight:700;letter-spacing:-.8px;line-height:1;color:var(--tekst)}
   .stat b{font-size:25px;font-weight:800;letter-spacing:-.8px;line-height:1.1}
-  .stat .spark{flex:none;display:flex;align-items:flex-end;gap:2px;height:26px;padding-bottom:2px}
-  .stat .spark i{width:4px;border-radius:2px;background:var(--lav);display:block}
+  /* Quick-filter tabs boven de Leads-tabel — alleen voor dit tabblad. */
+  .ls-tabs{display:flex;gap:28px;border-bottom:1px solid var(--rand-licht);background:#fff}
+  .ls-tabs button{background:none;border:0;padding:14px 0;font:inherit;font-weight:500;font-size:14px;
+    color:var(--grijstekst);cursor:pointer;position:relative}
+  .ls-tabs button.actief{color:var(--oranje);font-weight:600}
+  .ls-tabs button.actief::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--oranje)}
+  /* Toolbar van de Leads-tab: grijs gevuld zoekveld met loep, filters met
+     chevron, Excel-export als witte randknop — gescoped op #tab-leads. */
+  #tab-leads .filters{gap:10px;padding:14px 0;margin-bottom:0;border-bottom:1px solid var(--rand-licht);background:#fff}
+  #fZoek{min-width:280px;border:0;box-shadow:none;background:var(--veld) no-repeat 14px center;font-size:14px;color:var(--tekst);
+    padding:10px 14px 10px 40px;background-size:16px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")}
+  #fZoek::placeholder{color:var(--grijstekst)}
+  #fZoek:focus{box-shadow:0 0 0 2px var(--rand-licht)}
+  #tab-leads .filters select{border-color:var(--rand-licht);box-shadow:none;font-size:13.5px;font-weight:500;padding:9px 32px 9px 13px;
+    background:#fff no-repeat right 12px center;background-size:12px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+  #exportKnop{background:#fff;color:var(--tekst);border:1px solid var(--rand-licht);box-shadow:none;font-weight:500;font-size:14px;
+    padding:9px 15px;display:inline-flex;align-items:center;gap:8px}
+  #exportKnop:hover{background:var(--markering);border-color:var(--rand-licht)}
+  #exportKnop svg{width:17px;height:17px;color:var(--grijstekst)}
+  /* Leads-tabel: plat, zonder kaartrand/schaduw. */
+  #tab-leads table{border:0;border-radius:0;box-shadow:none;background:none}
+  #tab-leads th{background:none;border-bottom:1px solid var(--rand-licht);font-size:11px;letter-spacing:.06em;
+    color:var(--labeltekst);font-weight:600;padding:14px 12px}
+  #tab-leads td{border-bottom:1px solid var(--rand-zacht);font-size:14px;padding:14px 12px}
+  #tab-leads th:first-child,#tab-leads td:first-child{padding-left:0}
+  #tab-leads th:last-child,#tab-leads td:last-child{padding-right:0}
+  #tab-leads tr:hover td{background:#FCFCFD}
+  #tab-leads td b{font-weight:600}
+  #tab-leads .kantoor-naam{font-weight:600;color:var(--tekst);text-decoration:none}
+  #tab-leads a.kantoor-naam:hover{text-decoration:underline}
+  #tab-leads td small{color:var(--grijstekst);font-size:12.5px}
+  #tab-leads td .knop.secundair{border-color:var(--rand-licht);box-shadow:none;font-weight:500;font-size:13.5px;padding:6px 15px}
+  #tab-leads td .knop.secundair:hover{background:var(--markering)}
+  /* Score- en status-weergave in de Leads-tabel, los van de gedeelde
+     .badge/.status-klassen die elders (Mijn leads, leaddetail) blijven staan. */
+  .ls-score{display:flex;align-items:center;gap:10px}
+  .ls-segmenten{display:flex;gap:2px;flex:none}
+  .ls-segmenten i{display:block;width:3px;height:16px;border-radius:1px;background:var(--rand-licht)}
+  .ls-pil{font-size:12.5px;font-weight:500;border:1px solid var(--rand-licht);border-radius:var(--r-sm);padding:2px 8px;white-space:nowrap}
+  .ls-status{font-size:12px;padding:3px 11px;border-radius:var(--r-sm);font-weight:500;border:1px solid var(--rand-licht);
+    background:#fff;color:var(--tekst);display:inline-block;white-space:nowrap}
+  .ls-am{display:flex;align-items:center;gap:8px}
+  .ls-am-av{width:26px;height:26px;border-radius:99px;background:var(--markering);color:var(--tekst);font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;flex:none}
+  #leadRijen input[type=checkbox],#fAlles{width:16px;height:16px;accent-color:var(--oranje);cursor:pointer}
+  .ls-bulkbalk{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#181B27;color:#fff;
+    border-radius:var(--r-pill);padding:10px 10px 10px 18px;display:flex;align-items:center;gap:6px;
+    box-shadow:0 16px 40px rgba(16,24,40,.35);font-size:13px;font-weight:600;z-index:20}
+  .ls-bulkbalk .scheiding{width:1px;height:18px;background:rgba(255,255,255,.18);margin:0 6px}
+  .ls-bulkbalk button{background:none;border:0;color:#fff;font:inherit;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:var(--r-pill)}
+  .ls-bulkbalk button:hover{background:rgba(255,255,255,.1)}
+  .ls-bulkbalk button.wis{color:#FF8A80}
+  .ls-bulkbalk button:disabled{opacity:.5;cursor:default}
+  .ls-bulkbalk button:disabled:hover{background:none}
   .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
   select,input[type=text]{padding:9px 14px;border:1px solid var(--rand);border-radius:10px;background:#fff;font:inherit;font-weight:500;
                           font-size:13px;color:var(--tekst);box-shadow:var(--schaduw);outline:none;appearance:none}
@@ -209,12 +276,10 @@
   .stip{display:inline-block;width:11px;height:11px;border-radius:99px;margin-right:5px;vertical-align:-1px}
   .melding{padding:12px 16px;border-radius:14px;margin:10px 0;background:var(--lavbg);color:var(--lavd);display:none;font-weight:600}
   .alleen-mobiel{display:none}
-  .sb-am{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:var(--grijsbg)}
-  .sb-am .av{width:32px;height:32px;border-radius:99px;background:var(--zwart);color:#fff;display:flex;align-items:center;
-             justify-content:center;font-weight:800;font-size:12.5px;flex:none}
-  .sb-am .tekst{min-width:0}
-  .sb-am .label{font-size:10.5px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-  .sb-am .naam{font-size:13.5px;font-weight:700;color:var(--tekst);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sb-am{display:flex;align-items:center;gap:10px}
+  .sb-am .av{width:34px;height:34px;border-radius:99px;background:var(--donker);color:#fff;display:flex;align-items:center;
+             justify-content:center;font-weight:700;font-size:13px;flex:none}
+  .sb-am .naam{min-width:0;font-size:14px;font-weight:600;color:var(--tekst);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* Telefoon: verdere inhoud-aanpassingen (de navigatie-indeling zelf staat
      hierboven al vast op elke breedte). */
@@ -223,13 +288,22 @@
     .alleen-mobiel{display:block;font-size:12.5px;color:var(--dim);font-weight:500}
 
     /* Leadtabel wordt een compacte lijst: alleen wat een AM onderweg nodig heeft. */
-    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4),
-    th:nth-child(5), td:nth-child(5), th:nth-child(7), td:nth-child(7){display:none}
+    #tab-leads th:nth-child(1), #tab-leads td:nth-child(1),
+    #tab-leads th:nth-child(4), #tab-leads td:nth-child(4),
+    #tab-leads th:nth-child(5), #tab-leads td:nth-child(5),
+    #tab-leads th:nth-child(6), #tab-leads td:nth-child(6),
+    #tab-leads th:nth-child(8), #tab-leads td:nth-child(8){display:none}
     th,td{padding:11px 10px}
     .scorebar{width:52px}
     table{border-radius:12px}
 
     .kaarten{grid-template-columns:1fr 1fr;gap:10px}
+    .ls-tabs{overflow-x:auto;gap:22px}
+    .ls-tabs button{white-space:nowrap;flex:none}
+    #statKaarten{flex-wrap:wrap}
+    #statKaarten .stat{flex:0 0 calc(50% - 5px);border-right:1px solid var(--rand);border-bottom:1px solid var(--rand);padding:12px 14px}
+    #statKaarten .stat:nth-child(even){border-right:0}
+    #statKaarten .stat:last-child{border-bottom:0}
     .stat b{font-size:22px}
     .filters{gap:6px}
     #fZoek{min-width:0;flex:1}
@@ -262,7 +336,7 @@
   @media (min-width:701px){
     .app{flex-direction:row}
     aside{width:240px;flex:none;flex-direction:column;align-items:stretch;justify-content:flex-start;
-          border-right:1px solid var(--rand);border-bottom:0;padding:0;
+          border-right:1px solid var(--rand);border-bottom:0;padding:0;background:var(--bg);
           position:sticky;top:0;align-self:flex-start;height:100vh}
     /* Overschrijft de inline flex:1 (nodig in de bovenbalk-indeling op
        telefoon) — anders wedijvert deze rij met nav{flex:1} om de
@@ -271,17 +345,29 @@
     #instellingenKnop{display:none}
     aside > nav{position:static;flex:1;overflow-y:auto;flex-direction:column;background:none;
         border-top:0;gap:0;padding:6px 12px}
-    aside > nav button{flex:none;flex-direction:row;gap:11px;font-size:13.5px;padding:9px 10px;
-        border-radius:10px;min-height:auto;justify-content:flex-start;text-align:left}
-    aside > nav button svg{width:17px;height:17px}
-    aside > nav button.actief{background:var(--lavbg);color:var(--lavd)}
-    .nav-groep{display:flex;flex-direction:column;gap:2px;margin-top:18px}
+    aside > nav button{flex:none;flex-direction:row;gap:12px;font-size:14px;font-weight:500;color:var(--tekst);
+        padding:9px 10px;border-radius:10px;min-height:auto;justify-content:flex-start;text-align:left}
+    aside > nav button svg{width:18px;height:18px;color:var(--grijstekst)}
+    aside > nav button:hover{background:var(--markering);color:var(--tekst)}
+    aside > nav button.actief{background:var(--markering);color:var(--tekst);font-weight:600}
+    aside > nav button.actief svg{color:var(--tekst)}
+    .nav-tel{display:inline-block;margin-left:auto;font-size:11.5px;font-weight:600;color:var(--grijstekst);
+        background:var(--rand-zacht);border-radius:var(--r-sm);padding:1px 7px}
+    .nav-groep{display:flex;flex-direction:column;gap:1px;margin-top:20px}
     .nav-groep:first-child{margin-top:4px}
-    .nav-groep-titel{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-        color:var(--dim);padding:0 10px;margin:0 0 6px}
+    .nav-groep-titel{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+        text-transform:uppercase;color:var(--labeltekst);padding:0 10px;margin:0 0 8px}
+    .nav-groep-titel svg{width:11px;height:11px;opacity:.7}
     .alleen-desktop-nav{display:flex}
-    .sb-onder{display:block;border-top:1px solid var(--rand);padding:12px;flex:none}
+    .sb-onder{display:block;border-top:1px solid var(--rand-licht);padding:14px 16px;flex:none}
     .inhoud{padding:22px 26px}
+    /* Leads-tab: KPI-strip, tabs en toolbar als volle-breedte banden (uit
+       de .inhoud-padding gebroken), tabel binnen de 26px-goot. */
+    #tab-leads{margin:-22px -26px 0}
+    #tab-leads #statKaarten{padding:0 4px}
+    #tab-leads .ls-tabs,#tab-leads .filters{padding-left:26px;padding-right:26px}
+    #tab-leads table{width:calc(100% - 52px);margin:0 26px}
+    #tab-leads #rapportFilterChip{margin:14px 26px 10px !important}
   }
   @media print {
     nav, aside > nav, .belpaneel, #belKnop, #instellingenKnop, button.knop { display: none !important; }
@@ -311,13 +397,13 @@
   </div>
   <nav>
     <div class="nav-groep">
-      <div class="nav-groep-titel">Navigatie</div>
+      <div class="nav-groep-titel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>Navigatie</div>
       <button data-tab="leads" class="actief">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/></svg>
         Leads</button>
       <button data-tab="mijn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-        Mijn leads</button>
+        Mijn leads<span class="nav-tel" id="navMijnTel" hidden></span></button>
       <button data-tab="kaart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
         Kaart</button>
@@ -326,7 +412,7 @@
         Overzicht</button>
     </div>
     <div class="nav-groep">
-      <div class="nav-groep-titel">Overig</div>
+      <div class="nav-groep-titel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>Overig</div>
       <button id="feedbackKnop" title="Stuur feedback over de app">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-8 8H4l2.3-2.8A8 8 0 1 1 21 11.5z"/><path d="M9 10h6"/><path d="M9 13.5h4"/></svg>
         Feedback</button>
@@ -338,10 +424,7 @@
   <div class="sb-onder" id="sbOnder">
     <div class="sb-am">
       <div class="av" id="sbAmAv">?</div>
-      <div class="tekst">
-        <div class="label">Ingelogd als</div>
-        <div class="naam" id="sbAmNaam">— kies je naam —</div>
-      </div>
+      <div class="naam" id="sbAmNaam">— kies je naam —</div>
     </div>
   </div>
 </aside>
@@ -350,16 +433,25 @@
 
 <section id="tab-leads">
   <div class="kaarten" id="statKaarten"></div>
+  <div class="ls-tabs" id="leadsTabs">
+    <button class="actief" data-lt="">Alle</button>
+    <button data-lt="nieuw">Nieuw</button>
+    <button data-lt="mijn">Mijn leads</button>
+    <button data-lt="aandacht">Aandacht nodig</button>
+    <button data-lt="a">Klasse A</button>
+  </div>
   <div class="filters">
+    <input type="text" id="fZoek" placeholder="Zoek op naam of plaats…">
     <select id="fStatus"><option value="">Alle statussen</option></select>
     <select id="fKlasse"><option value="">Alle klassen</option><option>A</option><option>B</option><option>C</option></select>
     <select id="fProvincie"><option value="">Alle provincies</option></select>
     <select id="fAm"><option value="">Alle AM's</option></select>
-    <input type="text" id="fZoek" placeholder="Zoek op naam of plaats…">
-    <button class="knop" id="exportKnop" style="margin-left:auto" title="Exporteert de leadlijst met de actieve filters">⬇ Excel</button>
+    <button class="knop" id="exportKnop" style="margin-left:auto" title="Exporteert de leadlijst met de actieve filters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17a4 4 0 0 0-1-7.9 6 6 0 0 0-11.3 2A3.5 3.5 0 0 0 5.5 18H7"/><path d="M12 12v8"/><path d="M8.5 16.5 12 20l3.5-3.5"/></svg>
+      <span id="exportLabel">Excel-export</span></button>
   </div>
   <table>
-    <thead><tr><th>Score <span onclick="toonScoreUitleg()" title="Hoe wordt de score berekend?" style="cursor:pointer;color:var(--accent);font-weight:700">&#9432;</span></th><th>Kantoor</th><th>Plaats</th><th>Provincie</th><th>Vergunning per</th><th>Status</th><th>AM</th><th></th></tr></thead>
+    <thead><tr><th style="width:32px"><input type="checkbox" id="fAlles" title="Alles selecteren"></th><th style="width:160px">Score <span onclick="toonScoreUitleg()" title="Hoe wordt de score berekend?" style="cursor:pointer;font-weight:700">&#9432;</span></th><th>Kantoor</th><th>Plaats</th><th>Provincie</th><th>Vergunning per</th><th>Status</th><th>AM</th><th style="width:96px"></th></tr></thead>
     <tbody id="leadRijen"></tbody>
   </table>
 </section>
@@ -672,6 +764,7 @@ function verversSidebarAm() {
   const naam = localStorage.mijnAm || '';
   $('#sbAmNaam').textContent = naam || '— kies je naam —';
   $('#sbAmAv').textContent = naam ? naam.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '?';
+  verversMijnTeller();
 }
 
 function vulFilters() {
@@ -724,52 +817,157 @@ function tekenRapportFilterChip() {
   exportKnop.title = 'Exporteren is uitgeschakeld: er is een rapportfilter actief ("' + rapportExtraFilter.label + '") dat de export niet kan toepassen. Wis het filter om te exporteren.';
 }
 
+// Snelfilter-tabs boven de Leads-tabel; "aandacht" haalt de lijst lui op
+// (dezelfde bron als het Overzicht-tabblad) en cachet de id's tot herladen.
+let leadsKwikFilter = '';
+let aandachtIds = null;
+document.querySelectorAll('#leadsTabs button').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('#leadsTabs button').forEach(x => x.classList.remove('actief'));
+  b.classList.add('actief');
+  leadsKwikFilter = b.dataset.lt;
+  if (leadsKwikFilter === 'aandacht' && !aandachtIds) {
+    const lijst = await api('/api/aandacht');
+    aandachtIds = new Set(lijst.map(l => l.id));
+  }
+  tekenTabel();
+});
+
 function gefilterd() {
   const s=$('#fStatus').value, k=$('#fKlasse').value, p=$('#fProvincie').value, a=$('#fAm').value,
         z=$('#fZoek').value.toLowerCase();
   return LEADS.filter(l =>
     (!s || l.status===s) && (!k || l.klasse===k) && (!p || l.provincie===p) && (!a || l.am===a) &&
-    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)));
+    (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)) &&
+    (leadsKwikFilter!=='nieuw' || l.status==='Nieuw') &&
+    (leadsKwikFilter!=='mijn' || l.am===localStorage.mijnAm) &&
+    (leadsKwikFilter!=='a' || l.klasse==='A') &&
+    (leadsKwikFilter!=='aandacht' || (aandachtIds && aandachtIds.has(l.id))));
 }
 
+// Score als tien staafjes (gevuld naar rato van de score) plus een outline-pil
+// met klasse en cijfer. Kleur loopt van de basiskleur van de scoreband richting
+// geel aan de vulrand: hoge scores groen→geel, lage scores rood→oranje.
+const LS_SCORE_KLEUREN = ['#2FA84F', '#7CC243', '#C9D93B', '#F0862B', '#E5484D'];  // groen … geel … rood
+function scoreSegmenten(score) {
+  const s = score || 0;
+  const basis = s >= 60 ? 0 : s >= 50 ? 3 : 4;
+  const vol = Math.max(1, Math.min(10, Math.round(s / 10)));
+  const eerste = Math.ceil(vol * 0.5), tweede = eerste + Math.round(vol * 0.25);
+  return Array.from({length: 10}, (_, i) => {
+    if (i >= vol) return '<i></i>';
+    const stap = i < eerste ? 0 : i < tweede ? 1 : 2;
+    // groen schuift op richting geel (max index 2); oranje/rood schuift terug
+    // richting geel, maar rood komt niet verder dan oranje.
+    const idx = basis === 0 ? Math.min(2, stap) : Math.max(basis === 4 ? 3 : 2, basis - stap);
+    return `<i style="background:${LS_SCORE_KLEUREN[idx]}"></i>`;
+  }).join('');
+}
+function leadsAmCel(naam) {
+  if (!naam) return '—';
+  return `<div class="ls-am"><span class="ls-am-av">${naam.trim()[0].toUpperCase()}</span>${naam}</div>`;
+}
+
+// Bulk-selectie: meerdere leads tegelijk claimen op naam van de ingelogde AM.
+let leadSelectie = new Set();
+
 function tekenTabel() {
-  $('#leadRijen').innerHTML = gefilterd().map(l => `
+  const rijen = gefilterd();
+  const zichtbareIds = new Set(rijen.map(l => l.id));
+  // Selectie op leads die door het huidige filter uit beeld vallen laten
+  // vervallen, zodat de bulkbalk nooit onzichtbare rijen meetelt.
+  leadSelectie.forEach(id => { if (!zichtbareIds.has(id)) leadSelectie.delete(id); });
+
+  $('#leadRijen').innerHTML = rijen.map(l => `
     <tr>
-      <td><span class="badge k${l.klasse}" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">${l.klasse} · ${l.score}</span><div class="scorebar"><i class="sb${l.klasse}" style="width:${l.score}%"></i></div></td>
-      <td><b>${l.naam}</b>${l.website?` · <a href="${l.website}" target="_blank">site</a>`:''}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd)" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber)" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
+      <td><input type="checkbox" class="lead-select" data-id="${l.id}" ${leadSelectie.has(l.id)?'checked':''}></td>
+      <td><div class="ls-score" title="${l.score_uitleg||''}${l.website_uitleg?'; websitescan: '+l.website_uitleg:''}">
+        <div class="ls-segmenten">${scoreSegmenten(l.score)}</div>
+        <span class="ls-pil">${l.klasse} · ${l.score}</span>
+      </div></td>
+      <td>${l.website?`<a class="kantoor-naam" href="${l.website}" target="_blank" rel="noopener" title="Website openen: ${l.website}">${l.naam}</a>`:`<b class="kantoor-naam">${l.naam}</b>`}${l.keren_binnen>1?` <span class="badge" style="background:var(--lavbg);color:var(--lavd)" title="Deze lead zat ${l.keren_binnen}× in de AFM-bestanden, laatst op ${fmtDatum(l.laatst_binnen)}">${l.keren_binnen}×</span>`:''}${l.relatie_match==='mogelijk'?` <span class="badge" style="background:var(--amberbg);color:var(--amber)" title="Mogelijk bestaande relatie bij ${l.relatie_bron||'?'}: '${l.relatie_naam}' — controleer via het leaddetail">⚠ ${l.relatie_bron||'relatie'}?</span>`:''}<br>
           <span class="alleen-mobiel">${l.plaats||'plaats onbekend'}${l.am?' · '+l.am:''}</span>
           <small style="color:var(--dim)">${l.dienst||''}${l.beperkingen?' · ⚠ beperkte vergunning':''}</small></td>
       <td>${l.plaats||'<span style="color:var(--dim)">?</span>'}</td>
       <td>${l.provincie||'—'}</td>
       <td>${fmtDatum(l.begindatum_dienst)}</td>
-      <td><span class="status ${stKlasse(l.status)}">${l.status}</span>${l.presentje_datum?` <span title="Presentje: ${l.presentje_type} verstuurd op ${fmtDatum(l.presentje_datum)}" style="cursor:default">🎁</span>`:''}</td>
-      <td>${l.am||'—'}</td>
+      <td><span class="ls-status">${l.status}</span>${l.presentje_datum?` <span title="Presentje: ${l.presentje_type} verstuurd op ${fmtDatum(l.presentje_datum)}" style="cursor:default">🎁</span>`:''}</td>
+      <td>${leadsAmCel(l.am)}</td>
       <td><button class="knop secundair" onclick="openLead(${l.id})">Open</button></td>
-    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--dim)">Geen leads — importeer eerst de AFM-bestanden.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--dim)">Geen leads — importeer eerst de AFM-bestanden.</td></tr>';
+
+  $('#fAlles').checked = rijen.length > 0 && leadSelectie.size === rijen.length;
+  document.querySelectorAll('.lead-select').forEach(cb => cb.onchange = () => {
+    const id = Number(cb.dataset.id);
+    if (cb.checked) leadSelectie.add(id); else leadSelectie.delete(id);
+    $('#fAlles').checked = leadSelectie.size === rijen.length;
+    tekenBulkbalk();
+  });
+  tekenBulkbalk();
+}
+
+$('#fAlles').onchange = () => {
+  if ($('#fAlles').checked) gefilterd().forEach(l => leadSelectie.add(l.id));
+  else leadSelectie.clear();
+  tekenTabel();
+};
+
+function tekenBulkbalk() {
+  let balk = $('#leadsBulkbalk');
+  if (!leadSelectie.size) { if (balk) balk.remove(); return; }
+  if (!balk) {
+    balk = document.createElement('div');
+    balk.id = 'leadsBulkbalk';
+    balk.className = 'ls-bulkbalk';
+    document.body.appendChild(balk);
+  }
+  balk.innerHTML = `<span>${leadSelectie.size} geselecteerd</span>
+    <div class="scheiding"></div>
+    <button id="bulkClaim"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Claim</button>
+    <div class="scheiding"></div>
+    <button class="wis" id="bulkWis">Wis selectie</button>`;
+  $('#bulkWis').onclick = () => { leadSelectie.clear(); tekenTabel(); };
+  $('#bulkClaim').onclick = bulkClaimen;
+}
+
+async function bulkClaimen() {
+  const am = localStorage.mijnAm;
+  if (!am) return alert('Kies eerst je naam in "Mijn leads" om leads te kunnen claimen.');
+  const ids = [...leadSelectie];
+  const knop = $('#bulkClaim'); knop.disabled = true;
+  const mislukt = [];
+  for (const id of ids) {
+    try { await api(`/api/leads/${id}/claim`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({am})}); }
+    catch (e) { mislukt.push(LEADS.find(l=>l.id===id)?.naam || id); }
+  }
+  leadSelectie.clear();
+  await laadAlles();
+  if (mislukt.length) alert(`Niet gelukt voor: ${mislukt.join(', ')} (al geclaimd door iemand anders?)`);
 }
 
 ['fStatus','fKlasse','fProvincie','fAm'].forEach(id => $('#'+id).onchange = tekenTabel);
 $('#fZoek').oninput = tekenTabel;
 
-const statIcoon = {
-  totaal: '<rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="16" width="18" height="4" rx="2"/>',
-  claim: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
-  bezig: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
-  aanst: '<path d="M4 12l5 5L20 6"/>',
-  alead: '<path d="M12 3l2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9z"/>'
-};
 function tekenStats() {
   const telling = s => LEADS.filter(l=>l.status===s).length;
   const open = LEADS.filter(l=>['Nieuw'].includes(l.status)).length;
   const lopend = LEADS.filter(l=>['Geclaimd','Benaderd','In gesprek','Opnieuw binnen'].includes(l.status)).length;
-  const spark = () => '<div class="spark">' + [9,14,7,17,11,20,13].map(h=>`<i style="height:${h}px"></i>`).join('') + '</div>';
-  const kaart = (ik, n, label) => `<div class="stat"><div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${statIcoon[ik]}</svg></div><span>${label}</span><div class="cijferrij"><b>${n}</b>${spark()}</div></div>`;
+  const kaart = (n, label) => `<div class="stat"><span>${label}</span><div class="cijferrij"><b>${n}</b></div></div>`;
   $('#statKaarten').innerHTML =
-    kaart('totaal', LEADS.length, 'totaal leads') +
-    kaart('claim', open, 'nog te claimen') +
-    kaart('bezig', lopend, 'in behandeling') +
-    kaart('aanst', telling('Aanstelling'), 'aanstellingen') +
-    kaart('alead', LEADS.filter(l=>l.klasse==='A').length, 'A-leads');
+    kaart(LEADS.length, 'Totaal leads') +
+    kaart(open, 'Nog te claimen') +
+    kaart(lopend, 'In behandeling') +
+    kaart(telling('Aanstelling'), 'Aanstellingen') +
+    kaart(LEADS.filter(l=>l.klasse==='A').length, 'A-leads');
+  verversMijnTeller();
+}
+
+// Teller achter "Mijn leads" in de sidebar: aantal leads op naam van de
+// gekozen AM; verborgen zolang er geen naam gekozen is of het er nul zijn.
+function verversMijnTeller() {
+  const am = localStorage.mijnAm, n = am ? LEADS.filter(l => l.am === am).length : 0;
+  const el = $('#navMijnTel');
+  el.textContent = n;
+  el.hidden = !n;
 }
 
 // ---- lead-dialog ----
@@ -1172,7 +1370,7 @@ $('#exportKnop').onclick = async () => {
   const p = new URLSearchParams();
   for (const [naam, sel] of [['status','#fStatus'],['klasse','#fKlasse'],['provincie','#fProvincie'],['am','#fAm']])
     if ($(sel).value) p.set(naam, $(sel).value);
-  const knop = $('#exportKnop'); knop.disabled = true; knop.textContent = 'Bezig…';
+  const knop = $('#exportKnop'), label = $('#exportLabel'); knop.disabled = true; label.textContent = 'Bezig…';
   try {
     const r = await fetch('/api/export?' + p, {headers:{'X-Toegangscode': huidigeCode()}});
     if (!r.ok) throw new Error('Export mislukt (' + r.status + ')');
@@ -1183,7 +1381,7 @@ $('#exportKnop').onclick = async () => {
     a.click();
     URL.revokeObjectURL(a.href);
   } catch(e) { alert(e.message); }
-  knop.disabled = false; knop.textContent = '⬇ Excel';
+  knop.disabled = false; label.textContent = 'Excel-export';
 };
 
 // ---- rapport ----
