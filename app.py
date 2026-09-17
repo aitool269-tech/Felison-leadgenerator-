@@ -37,6 +37,14 @@ LOPEND = ("Geclaimd", "Benaderd", "In gesprek")
 # Deze statussen sluiten een lead feitelijk af; wie dat doet moet vastliggen
 # voor latere navraag, dus is een AM hier verplicht (i.t.t. de overige statussen).
 STATUSSEN_AM_VERPLICHT = ("Geen interesse", "Afgewezen", "Bestaande relatie")
+
+
+def presentje_ingevuld(lead):
+    """True als er een echte presentje-soort gekozen is (leeg of 'Geen' telt niet)."""
+    soort = (lead["presentje_type"] or "").strip().lower()
+    return bool(soort) and soort != "geen"
+
+
 ACCESS_CODE = os.environ.get("APP_ACCESS_CODE")
 SERPER_KEY = os.environ.get("SERPER_API_KEY")
 CRON_SECRET = os.environ.get("CRON_SECRET")
@@ -421,8 +429,9 @@ def claim(lead_id: int, body: ClaimBody):
     marketing = lees_instelling(con, "marketing_email")
     con.commit()
 
+    stuur_naar_marketing = eerste_claim and presentje_ingevuld(lead)
     push_resultaat = None
-    if eerste_claim:
+    if stuur_naar_marketing:
         # Marketing meteen een notificatie: haar vervolgstap is het presentje.
         # Een pushfout mag de claim nooit blokkeren.
         try:
@@ -436,7 +445,7 @@ def claim(lead_id: int, body: ClaimBody):
     con.close()
 
     mail_resultaat = None
-    if eerste_claim:
+    if stuur_naar_marketing:
         # Marketing (Nicky) ook per mail informeren zodra e-mail ooit werkt.
         # Een mailfout mag de claim nooit blokkeren.
         try:
@@ -485,7 +494,7 @@ def zet_status(lead_id: int, body: StatusBody):
         con.close()
         raise HTTPException(404, "Lead niet gevonden")
     naar_geclaimd = body.status == "Geclaimd" and lead["status"] != "Geclaimd"
-    presentje_geen = (lead["presentje_type"] or "").strip().lower() == "geen"
+    stuur_naar_marketing = naar_geclaimd and presentje_ingevuld(lead)
     con.execute("UPDATE leads SET status=? WHERE id=?", (body.status, lead_id))
     con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                 (lead_id, body.status, body.am, body.notitie))
@@ -493,7 +502,7 @@ def zet_status(lead_id: int, body: StatusBody):
     con.commit()
 
     push_resultaat = mail_resultaat = None
-    if naar_geclaimd and not presentje_geen:
+    if stuur_naar_marketing:
         # Marketing meteen een notificatie: haar vervolgstap is het presentje.
         # Een push-/mailfout mag de statuswijziging nooit blokkeren.
         try:
