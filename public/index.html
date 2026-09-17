@@ -1396,28 +1396,37 @@ function jsStr(s) { return String(s).replace(/[\\'"<>&]/g, c => ({'\\':'\\\\',"'
 const MAAND_KORT = {'01':'jan','02':'feb','03':'mrt','04':'apr','05':'mei','06':'jun',
   '07':'jul','08':'aug','09':'sep','10':'okt','11':'nov','12':'dec'};
 
-// Instroom per maand als staafdiagram met hover-tooltip (leads/benaderd/in
-// gesprek/aanstelling); alleen de staaf zelf is doorklikbaar naar de
-// bijbehorende Leads-maand, net als voorheen alleen de Leads-kolom was.
-function rapportChart(cohorten) {
-  if (!cohorten.length) return '<p style="color:var(--dim)">Nog geen data.</p>';
-  const max = Math.max(...cohorten.map(c => c.leads), 1);
-  return `<div class="rapport-chart">${cohorten.map(c => {
-    const filterCall = `naarLeadsMetFilter({extra:{label:'Ingestroomd in ${jsStr(c.maand)}', test:l=>String(l.aangemaakt).slice(0,7)==='${jsStr(c.maand)}'}})`;
-    const klikbaar = magDoorklikken();
+// Generieke staafgrafiek met hover-tooltip, gebruikt voor zowel "Instroom
+// per maand" als "Leads & conversie per provincie": elke `items`-rij is
+// {waarde (bepaalt staafhoogte), label (onder de staaf), titel (tooltip-kop),
+// rijen: [[label,waarde],...] (tooltip-inhoud), onclick (of null/leeg)}.
+function rapportStaafgrafiek(items) {
+  if (!items.length) return '<p style="color:var(--dim)">Nog geen data.</p>';
+  const max = Math.max(...items.map(i => i.waarde), 1);
+  return `<div class="rapport-chart">${items.map(i => {
+    const klikbaar = magDoorklikken() && i.onclick;
     return `<div class="rapport-staaf-kol">
-      <div class="rapport-staaf" style="height:${Math.max(4, Math.round(c.leads/max*100))}%${klikbaar?';cursor:pointer':''}"${klikbaar?` onclick="${filterCall}"`:''}>
+      <div class="rapport-staaf" style="height:${Math.max(4, Math.round(i.waarde/max*100))}%${klikbaar?';cursor:pointer':''}"${klikbaar?` onclick="${i.onclick}"`:''}>
         <div class="rapport-tooltip">
-          <div class="tt-maand">${c.maand.split('-').reverse().join('-')}</div>
-          <div class="tt-rij"><span>Leads</span><b>${c.leads}</b></div>
-          <div class="tt-rij"><span>Benaderd</span><b>${c.benaderd}</b></div>
-          <div class="tt-rij"><span>In gesprek</span><b>${c.in_gesprek}</b></div>
-          <div class="tt-rij"><span>Aanstelling</span><b>${c.aanstelling}</b></div>
+          <div class="tt-maand">${i.titel}</div>
+          ${i.rijen.map(([l,w]) => `<div class="tt-rij"><span>${l}</span><b>${w}</b></div>`).join('')}
         </div>
       </div>
-      <div class="rapport-staaf-maand">${MAAND_KORT[c.maand.slice(5,7)] || c.maand}</div>
+      <div class="rapport-staaf-maand">${i.label}</div>
     </div>`;
   }).join('')}</div>`;
+}
+
+// Instroom per maand: alleen de staaf zelf is doorklikbaar naar de
+// bijbehorende Leads-maand, net als voorheen alleen de Leads-kolom was.
+function rapportChart(cohorten) {
+  return rapportStaafgrafiek(cohorten.map(c => ({
+    waarde: c.leads,
+    label: MAAND_KORT[c.maand.slice(5,7)] || c.maand,
+    titel: c.maand.split('-').reverse().join('-'),
+    rijen: [['Leads', c.leads], ['Benaderd', c.benaderd], ['In gesprek', c.in_gesprek], ['Aanstelling', c.aanstelling]],
+    onclick: `naarLeadsMetFilter({extra:{label:'Ingestroomd in ${jsStr(c.maand)}', test:l=>String(l.aangemaakt).slice(0,7)==='${jsStr(c.maand)}'}})`,
+  })));
 }
 
 function gauge(pct, titel) {
@@ -1499,7 +1508,6 @@ async function laadRapport() {
   ]);
   const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '—';
   const pj = r.presentjes;
-  const d = r.doorlooptijd;
   const totaalLeads = Object.values(r.verdeling.status).reduce((a,b) => a+b, 0);
 
   // Pipeline: hoeveel leads bereikten ooit elke stap (som over alle maand-cohorten).
@@ -1539,13 +1547,18 @@ async function laadRapport() {
       : `naarLeadsMetFilter({am:'${jsStr(naam)}'})`);
     return rapportBarRij(naam, aandeel, aandeel+'%', kleur, filterCall);
   }).join('');
-  const maxConversie = Math.max(...r.provincies.map(p => p.conversie_pct), 1);
-  const provincieBars = r.provincies.map(p => {
-    const filterCall = !magDoorklikken() ? null : (p.provincie === 'Onbekend'
-      ? `naarLeadsMetFilter({extra:{label:'Provincie onbekend', test:l=>!l.provincie}})`
-      : `naarLeadsMetFilter({provincie:'${jsStr(p.provincie)}'})`);
-    return rapportBarRij(p.provincie, Math.round(p.conversie_pct/maxConversie*100), p.conversie_pct+'%', 'var(--lavd)', filterCall);
-  }).join('') || '<p style="color:var(--dim)">Nog geen data.</p>';
+  const provincieFilter = p => p.provincie === 'Onbekend'
+    ? `naarLeadsMetFilter({extra:{label:'Provincie onbekend', test:l=>!l.provincie}})`
+    : `naarLeadsMetFilter({provincie:'${jsStr(p.provincie)}'})`;
+  // Zelfde staafgrafiek-stijl als "Instroom per maand": staafhoogte = aantal
+  // leads, met leads/conversie in de hover-tooltip i.p.v. altijd zichtbaar.
+  const provincieChart = rapportStaafgrafiek(r.provincies.map(p => ({
+    waarde: p.leads,
+    label: p.provincie,
+    titel: p.provincie,
+    rijen: [['Leads', p.leads], ['Conversie', p.conversie_pct + '%']],
+    onclick: provincieFilter(p),
+  })));
 
   const metPresentje = pj.effect.find(e => e.label === 'Met presentje');
   const zonderPresentje = pj.effect.find(e => e.label === 'Zonder presentje');
@@ -1560,12 +1573,9 @@ async function laadRapport() {
         </div>
       </div>
       ${periodeKnoppen()}
-      <div class="kaarten" style="margin:var(--sp-4) 0">
-        <div class="stat"><b>${totaalLeads}</b><span>totaal leads</span></div>
-        <div class="stat"><b>${d.aantal_aanstellingen}</b><span>aanstellingen (${pct(d.aantal_aanstellingen,totaalLeads)})</span></div>
-        <div class="stat"><b>${d.gem_dagen_tot_eerste_actie ?? '—'}</b><span>gem. dagen tot eerste actie</span></div>
-        <div class="stat"><b>${d.gem_dagen_tot_aanstelling ?? '—'}</b><span>gem. dagen tot aanstelling</span></div>
-        <div class="stat"><b>${pj.openstaand}</b><span>openstaande presentjes (van ${pj.verstuurd})</span></div>
+      <div class="paneel" style="max-width:none;margin:var(--sp-4) 0">
+        <h3 style="margin-top:0">Pipeline</h3>
+        <div class="rapport-funnel">${pijplijnHtml}</div>
       </div>
       <div class="rapport-grid-2">
         <div class="paneel" style="max-width:none">
@@ -1577,42 +1587,38 @@ async function laadRapport() {
           ${gauge(gaugePct, 'van de leads bereikte ooit "In gesprek"')}
         </div>
       </div>
-      <div class="paneel" style="max-width:none;margin-bottom:var(--sp-4)">
-        <h3 style="margin-top:0">Pipeline</h3>
-        <div class="rapport-funnel">${pijplijnHtml}</div>
-      </div>
       <div class="rapport-grid-3">
         <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Per klasse</h3>
           <div class="rapport-barlijst">${klasseBars}</div></div>
         <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Per accountmanager</h3>
           <div class="rapport-barlijst">${amBars}</div></div>
       </div>
-      <div class="rapport-grid-3">
-        <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Conversie per provincie</h3>
-          <div class="rapport-barlijst">${provincieBars}</div></div>
-        <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Actie &amp; signalen</h3>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Aandacht nodig (${aandacht.length})</div>
-            <div class="rapport-signaal-lijst">${aandacht.length ? aandacht.slice(0,25).map(l => `
-              <div class="rapport-signaal-item"><a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
-                <span class="reden">${l.reden}</span></div>`).join('')
-              : '<p style="color:var(--dim);margin:0">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
+      <div class="paneel" style="max-width:none;margin-bottom:var(--sp-4)">
+        <h3 style="margin-top:0">Leads per provincie</h3>
+        ${provincieChart}
+      </div>
+      <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Actie &amp; signalen</h3>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Aandacht nodig (${aandacht.length})</div>
+          <div class="rapport-signaal-lijst">${aandacht.length ? aandacht.slice(0,25).map(l => `
+            <div class="rapport-signaal-item"><a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
+              <span class="reden">${l.reden}</span></div>`).join('')
+            : '<p style="color:var(--dim);margin:0">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
+        </div>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Relatiecheck</div>
+          <div class="rapport-mini-grid">
+            <div class="rapport-mini-stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.relaties}</b><span>relaties in de lijst</span></div>
           </div>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Relatiecheck</div>
-            <div class="rapport-mini-grid">
-              <div class="rapport-mini-stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.relaties}</b><span>relaties in de lijst</span></div>
-            </div>
-          </div>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Presentjes &mdash; effect op conversie</div>
-            <div class="rapport-vergelijk">
-              <div class="met"><span>Met presentje</span><b>${metPresentje ? metPresentje.conversie_pct : 0}%</b></div>
-              <div class="zonder"><span>Zonder presentje</span><b>${zonderPresentje ? zonderPresentje.conversie_pct : 0}%</b></div>
-            </div>
+        </div>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Presentjes &mdash; effect op conversie</div>
+          <div class="rapport-vergelijk">
+            <div class="met"><span>Met presentje</span><b>${metPresentje ? metPresentje.conversie_pct : 0}%</b></div>
+            <div class="zonder"><span>Zonder presentje</span><b>${zonderPresentje ? zonderPresentje.conversie_pct : 0}%</b></div>
           </div>
         </div>
       </div>
