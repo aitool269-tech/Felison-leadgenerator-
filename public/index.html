@@ -35,6 +35,7 @@
   aside{width:100%;flex:none;display:flex;flex-direction:row;align-items:center;justify-content:space-between;
         padding:10px 14px;border-right:0;border-bottom:1px solid var(--rand);
         padding-top:calc(10px + env(safe-area-inset-top))}
+  .aside-top{flex:1}
   .logo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:0}
   .logo-felison{height:19px;width:auto;display:block}
   .logo .sublabel{font-size:10.5px;letter-spacing:.16em;font-weight:700;color:#98A2B3;text-transform:uppercase}
@@ -207,7 +208,10 @@
     aside{width:240px;flex:none;flex-direction:column;align-items:stretch;justify-content:flex-start;
           border-right:1px solid var(--rand);border-bottom:0;padding:0;
           position:sticky;top:0;align-self:flex-start;height:100vh}
-    aside > div:first-child{padding:18px 16px 14px;padding-top:calc(18px + env(safe-area-inset-top))}
+    /* Overschrijft de inline flex:1 (nodig in de bovenbalk-indeling op
+       telefoon) — anders wedijvert deze rij met nav{flex:1} om de
+       verticale ruimte in de kolom en zakken de nav-items weg. */
+    .aside-top{flex:none;padding:18px 16px 14px;padding-top:calc(18px + env(safe-area-inset-top))}
     #instellingenKnop{display:none}
     aside > nav{position:static;flex:1;overflow-y:auto;flex-direction:column;background:none;
         border-top:0;gap:0;padding:6px 12px}
@@ -233,7 +237,7 @@
 <body>
 <div class="app">
 <aside>
-  <div style="display:flex;flex:1;justify-content:space-between;align-items:flex-start;position:relative">
+  <div class="aside-top" style="display:flex;justify-content:space-between;align-items:flex-start;position:relative">
     <div class="logo">
       <img class="logo-felison" src="/logo-felison.svg" alt="Felison">
       <span class="sublabel">Leadgenerator</span>
