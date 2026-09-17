@@ -170,17 +170,17 @@
   /* Combinatiegrafiek leads+conversie per provincie: staafhoogte = aandeel
      leads t.o.v. de provincie met de meeste leads, het donkere deel onderin
      = conversiepercentage van díe provincie. */
-  .rapport-combo{display:flex;align-items:stretch;gap:14px;height:250px}
-  .rapport-combo-kol{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
-  .rapport-combo-cijfers{flex:none;margin-bottom:8px;text-align:center}
-  .rapport-combo-cijfers b{display:block;font-size:17px;font-weight:800;letter-spacing:-.3px}
-  .rapport-combo-cijfers span{font-size:11px;color:var(--dim);font-weight:600}
+  .rapport-combo{display:flex;align-items:stretch;gap:10px;height:250px;overflow-x:auto;padding-bottom:2px}
+  .rapport-combo-kol{flex:0 0 68px;display:flex;flex-direction:column;align-items:center}
+  .rapport-combo-cijfers{flex:none;margin-bottom:8px;text-align:center;width:100%}
+  .rapport-combo-cijfers b{display:block;font-size:16px;font-weight:800;letter-spacing:-.3px}
+  .rapport-combo-naam{font-size:11.5px;font-weight:700;color:var(--tekst);margin:3px 0 1px;
+    overflow-wrap:break-word;line-height:1.2}
+  .rapport-combo-cijfers span{font-size:10.5px;color:var(--dim);font-weight:600}
   .rapport-combo-staafwrap{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
   .rapport-combo-staaf{width:100%;max-width:52px;border-radius:8px 8px 3px 3px;background:var(--lavbg);
     position:relative;overflow:hidden;cursor:pointer}
   .rapport-combo-vul{position:absolute;left:0;right:0;bottom:0;background:var(--lavd);border-radius:8px 8px 0 0}
-  .rapport-combo-label{flex:none;margin-top:8px;font-size:11.5px;color:var(--dim);font-weight:600;text-align:center;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .rapport-combo-legenda{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 var(--sp-4);font-size:12.5px;color:var(--dim);font-weight:600}
   .rapport-combo-legenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--rand)}
   .rapport-subkop{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 var(--sp-2)}
@@ -1368,13 +1368,16 @@ async function laadRapport() {
     const filterCall = !magDoorklikken() ? null : provincieFilter(p);
     const klik = filterCall ? ` onclick="${filterCall}"` : '';
     return `<div class="rapport-combo-kol">
-      <div class="rapport-combo-cijfers"><b>${p.conversie_pct}%</b><span>${p.leads}</span></div>
+      <div class="rapport-combo-cijfers">
+        <b>${p.conversie_pct}%</b>
+        <div class="rapport-combo-naam">${jsStr(p.provincie)}</div>
+        <span>${p.leads} lead${p.leads===1?'':'s'}</span>
+      </div>
       <div class="rapport-combo-staafwrap">
         <div class="rapport-combo-staaf" style="height:${Math.max(4, Math.round(p.leads/maxLeadsProvincie*100))}%"${klik}>
           <div class="rapport-combo-vul" style="height:${Math.min(100, p.conversie_pct)}%"></div>
         </div>
       </div>
-      <div class="rapport-combo-label">${jsStr(p.provincie)}</div>
     </div>`;
   }).join('') || '<p style="color:var(--dim)">Nog geen data.</p>';
 
