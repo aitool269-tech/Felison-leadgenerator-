@@ -1341,13 +1341,19 @@ async function laadRapport() {
       : `naarLeadsMetFilter({am:'${jsStr(naam)}'})`);
     return rapportBarRij(naam, aandeel, aandeel+'%', kleur, filterCall);
   }).join('');
+  const provincieFilter = p => p.provincie === 'Onbekend'
+    ? `naarLeadsMetFilter({extra:{label:'Provincie onbekend', test:l=>!l.provincie}})`
+    : `naarLeadsMetFilter({provincie:'${jsStr(p.provincie)}'})`;
+  const maxLeadsProvincie = Math.max(...r.provincies.map(p => p.leads), 1);
+  const leadsProvincieBars = r.provincies.map(p =>
+    rapportBarRij(p.provincie, Math.round(p.leads/maxLeadsProvincie*100), p.leads, 'var(--lav)',
+      !magDoorklikken() ? null : provincieFilter(p))
+  ).join('') || '<p style="color:var(--dim)">Nog geen data.</p>';
   const maxConversie = Math.max(...r.provincies.map(p => p.conversie_pct), 1);
-  const provincieBars = r.provincies.map(p => {
-    const filterCall = !magDoorklikken() ? null : (p.provincie === 'Onbekend'
-      ? `naarLeadsMetFilter({extra:{label:'Provincie onbekend', test:l=>!l.provincie}})`
-      : `naarLeadsMetFilter({provincie:'${jsStr(p.provincie)}'})`);
-    return rapportBarRij(p.provincie, Math.round(p.conversie_pct/maxConversie*100), p.conversie_pct+'%', 'var(--lavd)', filterCall);
-  }).join('') || '<p style="color:var(--dim)">Nog geen data.</p>';
+  const provincieBars = r.provincies.map(p =>
+    rapportBarRij(p.provincie, Math.round(p.conversie_pct/maxConversie*100), p.conversie_pct+'%', 'var(--lavd)',
+      !magDoorklikken() ? null : provincieFilter(p))
+  ).join('') || '<p style="color:var(--dim)">Nog geen data.</p>';
 
   const metPresentje = pj.effect.find(e => e.label === 'Met presentje');
   const zonderPresentje = pj.effect.find(e => e.label === 'Zonder presentje');
@@ -1390,31 +1396,33 @@ async function laadRapport() {
           <div class="rapport-barlijst">${amBars}</div></div>
       </div>
       <div class="rapport-grid-3">
+        <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Leads per provincie</h3>
+          <div class="rapport-barlijst">${leadsProvincieBars}</div></div>
         <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Conversie per provincie</h3>
           <div class="rapport-barlijst">${provincieBars}</div></div>
-        <div class="paneel" style="max-width:none"><h3 style="margin-top:0">Actie &amp; signalen</h3>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Aandacht nodig (${aandacht.length})</div>
-            <div class="rapport-signaal-lijst">${aandacht.length ? aandacht.slice(0,25).map(l => `
-              <div class="rapport-signaal-item"><a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
-                <span class="reden">${l.reden}</span></div>`).join('')
-              : '<p style="color:var(--dim);margin:0">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
+      </div>
+      <div class="paneel" style="max-width:900px"><h3 style="margin-top:0">Actie &amp; signalen</h3>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Aandacht nodig (${aandacht.length})</div>
+          <div class="rapport-signaal-lijst">${aandacht.length ? aandacht.slice(0,25).map(l => `
+            <div class="rapport-signaal-item"><a href="#" onclick="openLead(${l.id});return false"><b>${l.naam}</b></a>
+              <span class="reden">${l.reden}</span></div>`).join('')
+            : '<p style="color:var(--dim);margin:0">Niets dat aandacht nodig heeft. 🎉</p>'}</div>
+        </div>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Relatiecheck</div>
+          <div class="rapport-mini-grid">
+            <div class="rapport-mini-stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
+            <div class="rapport-mini-stat"><b>${relStatus.relaties}</b><span>relaties in de lijst</span></div>
           </div>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Relatiecheck</div>
-            <div class="rapport-mini-grid">
-              <div class="rapport-mini-stat">${drillLink(`<b>${relStatus.per_uitkomst.mogelijk}</b>`, `naarLeadsMetFilter({extra:{label:'Relatiecheck: open', test:l=>l.relatie_match==='mogelijk'}})`)}<span>nog te controleren</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.bevestigd}</b><span>bevestigd als relatie</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.per_uitkomst.geen}</b><span>verworpen (geen match)</span></div>
-              <div class="rapport-mini-stat"><b>${relStatus.relaties}</b><span>relaties in de lijst</span></div>
-            </div>
-          </div>
-          <div class="rapport-subblok">
-            <div class="rapport-subkop">Presentjes &mdash; effect op conversie</div>
-            <div class="rapport-vergelijk">
-              <div class="met"><span>Met presentje</span><b>${metPresentje ? metPresentje.conversie_pct : 0}%</b></div>
-              <div class="zonder"><span>Zonder presentje</span><b>${zonderPresentje ? zonderPresentje.conversie_pct : 0}%</b></div>
-            </div>
+        </div>
+        <div class="rapport-subblok">
+          <div class="rapport-subkop">Presentjes &mdash; effect op conversie</div>
+          <div class="rapport-vergelijk">
+            <div class="met"><span>Met presentje</span><b>${metPresentje ? metPresentje.conversie_pct : 0}%</b></div>
+            <div class="zonder"><span>Zonder presentje</span><b>${zonderPresentje ? zonderPresentje.conversie_pct : 0}%</b></div>
           </div>
         </div>
       </div>
