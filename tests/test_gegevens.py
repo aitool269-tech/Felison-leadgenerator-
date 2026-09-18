@@ -28,3 +28,22 @@ def test_gegevens_functie_mag_leeg_blijven(client, con_factory):
     assert r.status_code == 200
     lead = client.get("/api/leads").json()[0]
     assert lead["contactpersoon_functie"] is None
+
+
+def test_gegevens_slaat_overvoerpotentie_op(client, con_factory):
+    lead_id = maak_lead(con_factory)
+    r = client.post(f"/api/leads/{lead_id}/gegevens", json={
+        "overvoerpotentie": "Ja", "huidige_aanbieder": "Provinciaal", "overvoerpotentie_premie": 1250.5})
+    assert r.status_code == 200
+    lead = client.get("/api/leads").json()[0]
+    assert lead["overvoerpotentie"] == "Ja"
+    assert lead["huidige_aanbieder"] == "Provinciaal"
+    assert lead["overvoerpotentie_premie"] == 1250.5
+
+
+def test_gegevens_overvoerpotentie_premie_mag_nul_zijn(client, con_factory):
+    lead_id = maak_lead(con_factory)
+    r = client.post(f"/api/leads/{lead_id}/gegevens", json={"overvoerpotentie_premie": 0})
+    assert r.status_code == 200
+    lead = client.get("/api/leads").json()[0]
+    assert lead["overvoerpotentie_premie"] == 0
