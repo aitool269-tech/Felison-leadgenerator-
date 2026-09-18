@@ -1073,6 +1073,24 @@ window.openLead = async id => {
       <div id="dScanResultaat" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
     </div>
     <div class="veldgroep">
+      <div class="veldgroep-titel">Overvoerpotentie</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div><label>Overvoerpotentie?</label>
+          <select id="dOvervoerpotentie" style="width:100%">
+            ${['Nog niet bekend','Ja','Nee'].map(o=>`<option ${(l.overvoerpotentie||'Nog niet bekend')===o?'selected':''}>${o}</option>`).join('')}
+          </select></div>
+        <div><label>Huidige aanbieder</label>
+          <select id="dHuidigeAanbieder" style="width:100%">
+            ${['Nog niet bekend','Provinciaal','Serviceprovider'].map(o=>`<option ${(l.huidige_aanbieder||'Nog niet bekend')===o?'selected':''}>${o}</option>`).join('')}
+          </select></div>
+        <div><label>Overvoerpotentie premie</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:var(--dim)">€</span>
+            <input type="number" id="dOvervoerpotentiePremie" value="${l.overvoerpotentie_premie ?? ''}" placeholder="0" min="0" step="0.01" style="width:100%">
+          </div></div>
+      </div>
+    </div>
+    <div class="veldgroep">
       <div class="veldgroep-titel">Planning &amp; presentje</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
         <div><label>Vervolgactie</label>
@@ -1147,8 +1165,11 @@ window.openLead = async id => {
   $('#dOpslaan').onclick = async () => {
     const status = $('#dStatus').value, notitie = $('#dNotitie').value, web = $('#dWebsite').value;
     const json = b => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+    const premieRaw = $('#dOvervoerpotentiePremie').value.trim();
     const g = {telefoon:$('#dTelefoon').value.trim(), email:$('#dEmail').value.trim(),
-      contactpersoon:$('#dContactpersoon').value.trim(), contactpersoon_functie:$('#dContactpersoonFunctie').value.trim()};
+      contactpersoon:$('#dContactpersoon').value.trim(), contactpersoon_functie:$('#dContactpersoonFunctie').value.trim(),
+      overvoerpotentie:$('#dOvervoerpotentie').value, huidige_aanbieder:$('#dHuidigeAanbieder').value,
+      overvoerpotentie_premie: premieRaw === '' ? null : parseFloat(premieRaw)};
     const STATUSSEN_CONTACT_WAARSCHUWING = ['Benaderd','In gesprek','Aanstelling'];
     if (status !== l.status && STATUSSEN_CONTACT_WAARSCHUWING.includes(status) && !g.telefoon && !g.email && !g.contactpersoon)
       alert('Contactgegevens zijn niet ingevuld en kunnen waardevol zijn.');
@@ -1160,7 +1181,9 @@ window.openLead = async id => {
       await api(`/api/leads/${id}/status`, json({status, notitie, am}));
     if (web !== (l.website||''))
       await api(`/api/leads/${id}/website`, json({website:web}));
-    if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||'') || g.contactpersoon_functie!==(l.contactpersoon_functie||''))
+    if (g.telefoon!==(l.telefoon||'') || g.email!==(l.email||'') || g.contactpersoon!==(l.contactpersoon||'') || g.contactpersoon_functie!==(l.contactpersoon_functie||'')
+        || g.overvoerpotentie!==(l.overvoerpotentie||'Nog niet bekend') || g.huidige_aanbieder!==(l.huidige_aanbieder||'Nog niet bekend')
+        || g.overvoerpotentie_premie!==(l.overvoerpotentie_premie ?? null))
       await api(`/api/leads/${id}/gegevens`, json(g));
     const v = {datum:$('#dVervolgDatum').value, actie:$('#dVervolgActie').value.trim()};
     if (v.datum!==(l.vervolg_datum||'') || v.actie!==(l.vervolg_actie||''))
@@ -1529,6 +1552,8 @@ async function laadRapport() {
     return acc;
   }, {leads:0, benaderd:0, in_gesprek:0, aanstelling:0});
   const gaugePct = pijplijn.leads ? Math.round(1000*pijplijn.in_gesprek/pijplijn.leads)/10 : 0;
+  const euro = n => '€ ' + Math.round(n||0).toLocaleString('nl-NL');
+  const premie = r.premie_pijplijn || {leads:0, benaderd:0, in_gesprek:0, aanstelling:0};
   const PIJPLIJN_KLEUR = ['#8AC3FA','#53B1FD','#2E90FA','#175CD3'];
   const pijplijnHtml = [
     ['Leads', pijplijn.leads, 'ingestroomd'],
@@ -1538,7 +1563,10 @@ async function laadRapport() {
   ].map(([label,waarde,sub],i) => `<div class="rapport-funnel-stap">
     <div class="rapport-funnel-vorm" style="background:${PIJPLIJN_KLEUR[i]}">${waarde}</div>
     <div class="rapport-funnel-label"><b>${label}</b><span>${sub}</span></div>
-  </div>`).join('');
+  </div>`).join('') + `<div class="rapport-funnel-stap">
+    <div class="rapport-funnel-vorm" style="background:var(--amber)">${euro(premie.leads)}</div>
+    <div class="rapport-funnel-label"><b>Overvoerpotentie</b><span>totaal in pipeline</span></div>
+  </div>`;
 
   const klasseKleur = {A:'#1E9E6A', B:'#EF9F27', C:'#B4B2A9'};
   const klasseBars = Object.entries(r.verdeling.klasse).map(([label,value]) => {

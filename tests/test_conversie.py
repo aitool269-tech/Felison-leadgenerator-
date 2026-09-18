@@ -64,6 +64,25 @@ def test_conversie_periodefilter_tot_is_inclusief_de_einddatum(client, con_facto
     assert sum(r["verdeling"]["status"].values()) == 1  # 23:59:59 wordt aan 'tot' toegevoegd
 
 
+def test_conversie_premie_pijplijn_telt_cumulatief_per_stap(client, con_factory):
+    maak_lead(con_factory, naam="Nieuw", status="Nieuw", vergunningnummer="X1",
+              overvoerpotentie_premie=1000)
+    maak_lead(con_factory, naam="Aangesteld", status="Aanstelling", vergunningnummer="X2",
+              overvoerpotentie_premie=500)
+    r = client.get("/api/conversie").json()
+    # Beide leads tellen mee bij "leads"; alleen de aangestelde lead bereikte
+    # de overige stappen (huidige status telt zelf ook mee, ongeacht status_log).
+    assert r["premie_pijplijn"]["leads"] == 1500
+    assert r["premie_pijplijn"]["benaderd"] == 500
+    assert r["premie_pijplijn"]["aanstelling"] == 500
+
+
+def test_conversie_premie_pijplijn_negeert_lege_bedragen(client, con_factory):
+    maak_lead(con_factory, naam="ZonderPremie", status="Nieuw", vergunningnummer="X1")
+    r = client.get("/api/conversie").json()
+    assert r["premie_pijplijn"]["leads"] == 0
+
+
 def test_conversie_periodefilter_vanaf_en_tot_combineren(client, con_factory):
     maak_lead(con_factory, naam="Voor", vergunningnummer="X1", aangemaakt="2024-12-01")
     maak_lead(con_factory, naam="In", vergunningnummer="X2", aangemaakt="2025-01-15")

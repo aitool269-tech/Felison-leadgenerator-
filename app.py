@@ -700,14 +700,19 @@ class GegevensBody(BaseModel):
     email: str = None
     contactpersoon: str = None
     contactpersoon_functie: str = None
+    overvoerpotentie: str = None
+    huidige_aanbieder: str = None
+    overvoerpotentie_premie: float = None
 
 
 @app.post("/api/leads/{lead_id}/gegevens")
 def zet_gegevens(lead_id: int, body: GegevensBody):
     con = DB()
-    con.execute("UPDATE leads SET telefoon=?, email=?, contactpersoon=?, contactpersoon_functie=? WHERE id=?",
+    con.execute("UPDATE leads SET telefoon=?, email=?, contactpersoon=?, contactpersoon_functie=?, "
+                "overvoerpotentie=?, huidige_aanbieder=?, overvoerpotentie_premie=? WHERE id=?",
                 (body.telefoon or None, body.email or None, body.contactpersoon or None,
-                 body.contactpersoon_functie or None, lead_id))
+                 body.contactpersoon_functie or None, body.overvoerpotentie or None,
+                 body.huidige_aanbieder or None, body.overvoerpotentie_premie, lead_id))
     con.commit(); con.close()
     return {"ok": True}
 
@@ -1016,7 +1021,8 @@ def export_excel(status: str = None, klasse: str = None, provincie: str = None, 
 def conversie(vanaf: str = None, tot: str = None):
     """Funnel per maandcohort, conversie per scoreklasse en doorlooptijden."""
     con = DB()
-    q = "SELECT id, klasse, status, provincie, aangemaakt, am, presentje_datum, presentje_type FROM leads WHERE 1=1"
+    q = ("SELECT id, klasse, status, provincie, aangemaakt, am, presentje_datum, presentje_type, "
+         "overvoerpotentie_premie FROM leads WHERE 1=1")
     p = []
     if vanaf:
         q += " AND aangemaakt >= ?"; p.append(vanaf)
@@ -1047,6 +1053,21 @@ def conversie(vanaf: str = None, tot: str = None):
             c["aanstelling"] += 1
         if l["status"] in ("Afgewezen", "Geen interesse"):
             c["afgesloten"] += 1
+
+    # Overvoerpotentie-premie per pipelinestap: cumulatief, net als de
+    # aantallen hierboven — een lead die "In gesprek" bereikte telt ook mee
+    # bij "Benaderd" en "Leads".
+    premie_pijplijn = {"leads": 0.0, "benaderd": 0.0, "in_gesprek": 0.0, "aanstelling": 0.0}
+    for l in leads:
+        bedrag = l["overvoerpotentie_premie"] or 0
+        premie_pijplijn["leads"] += bedrag
+        if bereikt(l, "Benaderd", "In gesprek", "Aanstelling"):
+            premie_pijplijn["benaderd"] += bedrag
+        if bereikt(l, "In gesprek", "Aanstelling"):
+            premie_pijplijn["in_gesprek"] += bedrag
+        if bereikt(l, "Aanstelling"):
+            premie_pijplijn["aanstelling"] += bedrag
+    premie_pijplijn = {k: round(v, 2) for k, v in premie_pijplijn.items()}
 
     klassen = {}
     for l in leads:
@@ -1127,6 +1148,7 @@ def conversie(vanaf: str = None, tot: str = None):
 
     return {
         "cohorten": sorted(cohorten.values(), key=lambda c: c["maand"]),
+        "premie_pijplijn": premie_pijplijn,
         "klassen": sorted(klassen.values(), key=lambda k: k["klasse"]),
         "presentjes": presentjes,
         "doorlooptijd": {
