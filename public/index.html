@@ -228,7 +228,6 @@
   .rapport-funnel-label{margin-top:var(--sp-2);text-align:center}
   .rapport-funnel-label b{display:block;font-size:12px;color:var(--tekst);font-weight:700}
   .rapport-funnel-label span{font-size:11px;color:var(--dim)}
-  .rapport-funnel-label .rapport-funnel-premie{display:block;margin-top:2px;font-weight:600;color:var(--tekst)}
   .rapport-barlijst{display:flex;flex-direction:column;gap:13px}
   .rapport-barlijst-rij{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:10px}
   .rapport-barlijst-naam{font-weight:600;font-size:12.5px;color:var(--tekst);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1557,14 +1556,17 @@ async function laadRapport() {
   const premie = r.premie_pijplijn || {leads:0, benaderd:0, in_gesprek:0, aanstelling:0};
   const PIJPLIJN_KLEUR = ['#8AC3FA','#53B1FD','#2E90FA','#175CD3'];
   const pijplijnHtml = [
-    ['Leads', pijplijn.leads, 'ingestroomd', premie.leads],
-    ['Benaderd', pijplijn.benaderd, pct(pijplijn.benaderd, pijplijn.leads), premie.benaderd],
-    ['In gesprek', pijplijn.in_gesprek, pct(pijplijn.in_gesprek, pijplijn.leads), premie.in_gesprek],
-    ['Aanstelling', pijplijn.aanstelling, pct(pijplijn.aanstelling, pijplijn.leads), premie.aanstelling],
-  ].map(([label,waarde,sub,premieBedrag],i) => `<div class="rapport-funnel-stap">
+    ['Leads', pijplijn.leads, 'ingestroomd'],
+    ['Benaderd', pijplijn.benaderd, pct(pijplijn.benaderd, pijplijn.leads)],
+    ['In gesprek', pijplijn.in_gesprek, pct(pijplijn.in_gesprek, pijplijn.leads)],
+    ['Aanstelling', pijplijn.aanstelling, pct(pijplijn.aanstelling, pijplijn.leads)],
+  ].map(([label,waarde,sub],i) => `<div class="rapport-funnel-stap">
     <div class="rapport-funnel-vorm" style="background:${PIJPLIJN_KLEUR[i]}">${waarde}</div>
-    <div class="rapport-funnel-label"><b>${label}</b><span>${sub}</span><span class="rapport-funnel-premie">${euro(premieBedrag)} overvoerpotentie</span></div>
-  </div>`).join('');
+    <div class="rapport-funnel-label"><b>${label}</b><span>${sub}</span></div>
+  </div>`).join('') + `<div class="rapport-funnel-stap">
+    <div class="rapport-funnel-vorm" style="background:var(--amber)">${euro(premie.leads)}</div>
+    <div class="rapport-funnel-label"><b>Overvoerpotentie</b><span>totaal in pipeline</span></div>
+  </div>`;
 
   const klasseKleur = {A:'#1E9E6A', B:'#EF9F27', C:'#B4B2A9'};
   const klasseBars = Object.entries(r.verdeling.klasse).map(([label,value]) => {
