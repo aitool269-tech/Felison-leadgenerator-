@@ -105,3 +105,14 @@ def test_xlsx_zonder_verplichte_kolommen_geeft_400(client):
         "xlsx": ("R0443.xlsx", buf, "application/octet-stream"),
         "register_csv": ("register.csv", maak_csv([]), "text/csv")})
     assert r.status_code == 400
+
+
+def test_dubbel_vergunningnummer_in_zelfde_xlsx_geeft_geen_fout(client):
+    rij = {"Vergunningnummer": "AFM-9", "Naam": "Dubbel Kantoor", "Dienst": "Adviseren / Bemiddelen"}
+    with patch("app.requests.get", side_effect=geen_geocode_resultaat):
+        r = client.post("/api/import", files={
+            "xlsx": ("R0443.xlsx", maak_xlsx([rij, dict(rij)]), "application/octet-stream"),
+            "register_csv": ("register.csv", maak_csv([]), "text/csv")})
+    assert r.status_code == 200
+    assert r.json()["nieuw"] == 1
+    assert len(client.get("/api/leads").json()) == 1

@@ -241,9 +241,14 @@ async def importeer(xlsx: UploadFile = File(...), register_csv: UploadFile = Fil
         raise HTTPException(400, f"Xlsx mist kolommen; verwacht o.a. {verplicht}")
 
     leads = []
+    gezien = set()
     for r in rows[1:]:
         if not r[hdr["Vergunningnummer"]]:
             continue  # lege opmaakrijen in het AFM-rapport
+        # Het AFM-rapport kan één vergunning op meerdere regels zetten; alleen de eerste telt.
+        if str(r[hdr["Vergunningnummer"]]) in gezien:
+            continue
+        gezien.add(str(r[hdr["Vergunningnummer"]]))
         def g(k):
             v = r[hdr[k]] if k in hdr else None
             return None if v in (None, "-", "") else v
