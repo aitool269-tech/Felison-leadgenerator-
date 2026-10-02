@@ -653,6 +653,11 @@ function toonScoreUitleg() {
   leadDialog.showModal();
 }
 let LEADS = [], AMS = [], PRESENTJE_TYPES = [], STATUSSEN = [], kaart = null, markerLaag = null;
+// Afgesloten leads zijn niet meer zichtbaar als actieve lead; ze komen terug via het statusfilter.
+const AFGESLOTEN = ['Afgewezen','Geen interesse','Aanstelling'];
+// Afgewezen/geen interesse mét vervolgdatum blijven op de werklijst van de AM staan.
+const afgewezenMetVervolg = l => ['Afgewezen','Geen interesse'].includes(l.status) && !!l.vervolg_datum;
+const inMijnLeads = l => !AFGESLOTEN.includes(l.status) || afgewezenMetVervolg(l);
 
 // ---- tabs ----
 const TAB_KNOPPEN = 'nav button, #instellingenKnop, #instellingenKnopSidebar';
@@ -845,6 +850,7 @@ function gefilterd() {
   const s=$('#fStatus').value, k=$('#fKlasse').value, p=$('#fProvincie').value, a=$('#fAm').value,
         z=$('#fZoek').value.toLowerCase();
   return LEADS.filter(l =>
+    (s || rapportExtraFilter || !AFGESLOTEN.includes(l.status)) &&
     (!s || l.status===s) && (!k || l.klasse===k) && (!p || l.provincie===p) && (!a || l.am===a) &&
     (!z || (l.naam+' '+(l.plaats||'')).toLowerCase().includes(z)) && (!rapportExtraFilter || rapportExtraFilter.test(l)) &&
     (leadsKwikFilter!=='nieuw' || l.status==='Nieuw') &&
@@ -973,7 +979,7 @@ function tekenStats() {
 // Teller achter "Mijn leads" in de sidebar: aantal leads op naam van de
 // gekozen AM; verborgen zolang er geen naam gekozen is of het er nul zijn.
 function verversMijnTeller() {
-  const am = localStorage.mijnAm, n = am ? LEADS.filter(l => l.am === am).length : 0;
+  const am = localStorage.mijnAm, n = am ? LEADS.filter(l => l.am === am && inMijnLeads(l)).length : 0;
   const el = $('#navMijnTel');
   el.textContent = n;
   el.hidden = !n;
@@ -1223,7 +1229,7 @@ function tekenMijn() {
   if (!am) { doel.innerHTML = '<div class="paneel">Kies hierboven je naam om jouw werklijst te zien. Nog geen naam in de lijst? Voeg jezelf toe via Instellingen → Accountmanagers.</div>'; return; }
   const vandaag = new Date().toISOString().slice(0,10);
   const mijn = LEADS.filter(l => l.am === am);
-  const open = l => LOPEND.includes(l.status) || l.status === 'Opnieuw binnen';
+  const open = l => LOPEND.includes(l.status) || l.status === 'Opnieuw binnen' || afgewezenMetVervolg(l);
   const checks = LEADS.filter(l => l.relatie_match === 'mogelijk' && (l.am === am || !l.am));
   const groepen = [
     ['Te controleren: mogelijke bestaande relatie', 'rood', checks,
