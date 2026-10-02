@@ -500,7 +500,11 @@ def zet_status(lead_id: int, body: StatusBody):
         raise HTTPException(404, "Lead niet gevonden")
     naar_geclaimd = body.status == "Geclaimd" and lead["status"] != "Geclaimd"
     stuur_naar_marketing = naar_geclaimd and presentje_ingevuld(lead)
-    con.execute("UPDATE leads SET status=? WHERE id=?", (body.status, lead_id))
+    if body.status in ("Afgewezen", "Geen interesse") and (body.am or "").strip():
+        # Zo komt de lead met een vervolgdatum in "Mijn leads" van de gekozen AM terecht.
+        con.execute("UPDATE leads SET status=?, am=? WHERE id=?", (body.status, body.am.strip(), lead_id))
+    else:
+        con.execute("UPDATE leads SET status=? WHERE id=?", (body.status, lead_id))
     con.execute("INSERT INTO status_log(lead_id, status, am, notitie) VALUES(?,?,?,?)",
                 (lead_id, body.status, body.am, body.notitie))
     marketing = lees_instelling(con, "marketing_email")

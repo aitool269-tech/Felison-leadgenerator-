@@ -113,3 +113,19 @@ def test_status_niet_afsluitende_status_zonder_am_slaagt(client, con_factory):
     lead_id = maak_lead(con_factory, status="Nieuw")
     r = client.post(f"/api/leads/{lead_id}/status", json={"status": "Benaderd"})
     assert r.status_code == 200
+
+
+def test_afgewezen_zet_gekozen_am_op_de_lead(client, con_factory):
+    lead_id = maak_lead(con_factory, status="Nieuw", am=None)
+    for status in ("Afgewezen", "Geen interesse"):
+        client.post(f"/api/leads/{lead_id}/status", json={"status": "Nieuw", "am": None})
+        client.post(f"/api/leads/{lead_id}/status", json={"status": status, "am": "Anna"})
+        lead = client.get("/api/leads").json()[0]
+        assert lead["status"] == status
+        assert lead["am"] == "Anna", status
+
+
+def test_andere_status_laat_am_op_de_lead_ongemoeid(client, con_factory):
+    lead_id = maak_lead(con_factory, status="Geclaimd", am="Bart")
+    client.post(f"/api/leads/{lead_id}/status", json={"status": "Bestaande relatie", "am": "Anna"})
+    assert client.get("/api/leads").json()[0]["am"] == "Bart"
